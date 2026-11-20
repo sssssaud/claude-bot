@@ -71,6 +71,16 @@
 7. **Position is clamped by the octo's box, not the window's**, so the octo can sit flush against
    any screen edge while the empty part of the window hangs off-screen.
 
+## Saud's additions (2026-11-20)
+1. **Eyes always look at the terminal** (replaces the spec's cursor `lookAt`). Phase 3 builds
+   "look at a screen point" (eyes shift, body yaws up to ±25°) driven by a fake terminal position
+   from the dock. Phase 4: the bridge finds the real terminal. Wayland apps can't see other windows,
+   so a small KWin script reports the window of the terminal that runs Claude Code (its process →
+   KWin window `pid`), over D-Bus.
+2. **Future upgrade, not scheduled yet:** click the octo → quick-settings popup to control
+   Bluetooth, Wi-Fi, brightness and show battery %. Through the bridge: BlueZ and NetworkManager
+   D-Bus, UPower/psutil, KDE PowerDevil brightness. (Click currently = turnAround.)
+
 ## Constraints
 - **No Plasma X11 session** on this laptop (it doesn't work, per Saud). The spec's "log into a Plasma
   X11 session" fallback (PROMPT.md §11) is out. The overlay runs in the Wayland session through
