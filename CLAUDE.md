@@ -53,7 +53,7 @@ Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest 
 
 ## Current status
 - Done: spec, emote pack, UI look approved. Phase 0 hardware report, Phase 1 clean sprites + 3D octo, Phase 2 Electron overlay (all 2026-11-20).
-- Pending: Saud's real-mouse check of Phase 2; then Phase 3 (badge + moods + simulator dock), plan needs Saud's OK.
+- Pending: Phase 3 (badge + moods + simulator dock), plan needs Saud's OK.
 - Blockers: none. Open: AW-ELC flash-write question (Phase 4).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - Save-file: `docs/STATUS.md`.

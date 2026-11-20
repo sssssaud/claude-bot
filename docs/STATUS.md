@@ -4,7 +4,7 @@
 |---|---|---|
 | 0 Hardware report | ✅ done 2026-11-20 | `docs/HARDWARE.md`. Read-only, nothing installed or written to hardware. |
 | 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
-| 2 Electron overlay | ✅ done 2026-11-20 (one hand check left, see below) | Tag `phase-2-working`. |
+| 2 Electron overlay | ✅ done 2026-11-20, hand-checked | Tag `phase-2-working`. |
 | 3 Badge + moods + dock (fake data) | ⏳ next: plan needs Saud's OK | |
 | 4 Bridge + RGB | — | Tier 1 OpenRGB SDK is viable (see HARDWARE.md) |
 | 5 Telemetry HUD | — | Never `lspci` in the poll loop (it wakes the dGPU) |
@@ -27,10 +27,9 @@
   the window by exactly the pointer delta; dragging far off-screen clamped the octo into the corner;
   position saved and restored after a restart; WebGL on Intel; 61 FPS acting / 24 FPS idle;
   idle CPU 13.7 % of one core; dGPU suspended throughout; no GPU crashes.
-- **Not yet checked by hand:** a real mouse. Drag and click were driven with DevTools input events, and
-  click-through was verified at the X11 level (input shape), not with a physical click. To check:
-  `npm run app`, hover/click next to the octo (the window below should get the click), click the
-  octo (it spins), drag it around (it follows, stays on screen, comes back there after a restart).
+- **Checked by hand (Saud, 15:25):** real-mouse drag and drop worked (it saved `position.json`
+  at 15:25:32); click-through next to the octo and click-to-spin confirmed by Saud. Normal launch
+  went through the self-relaunch, no crashes, dGPU stayed suspended.
 
 ## Phase 1: what was built and checked
 
@@ -78,7 +77,6 @@
   XWayland; fallbacks are `CLAUDE_BOT_OZONE=wayland` or a full-width bottom-strip window.
 
 ## Blockers / open questions
-- Real-mouse check of Phase 2 (see above).
 - Screen-lock pause (spec 3.3) not done yet: Phase 7, together with the tray's Sleep.
 - `lookAt` (Phase 3) needs the cursor position, which XWayland only reports over X11 windows: expect it to work only near the octo.
 - Does the AW-ELC store each update in flash? (Phase 4, before any streaming)
