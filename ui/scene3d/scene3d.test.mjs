@@ -48,7 +48,7 @@ test('squash keeps volume', () => {
   for (const s of [0.6, 0.76, 1, 1.2]) assert.ok(near(squashScale(s).reduce((a, b) => a * b), 1));
 });
 
-test('frame budget: ~24 draws/s idle on 60 and 144 Hz displays, every frame while acting', () => {
+test('frame budget: ~24 draws/s idle, ~60 while acting, on 60, 120 and 144 Hz displays', () => {
   const drawsPerSecond = (hz, idle) => {
     let deadline = 0;
     let draws = 0;
@@ -58,9 +58,9 @@ test('frame budget: ~24 draws/s idle on 60 and 144 Hz displays, every frame whil
     }
     return draws / 10;
   };
-  for (const hz of [60, 144]) {
+  for (const hz of [60, 120, 144]) {
     assert.ok(Math.abs(drawsPerSecond(hz, true) - 24) <= 0.5, `${hz} Hz idle: ${drawsPerSecond(hz, true)}`);
-    assert.equal(drawsPerSecond(hz, false), hz);
+    assert.ok(Math.abs(drawsPerSecond(hz, false) - 60) <= 0.5, `${hz} Hz acting: ${drawsPerSecond(hz, false)}`);
   }
 });
 

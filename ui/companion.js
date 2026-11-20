@@ -1,19 +1,19 @@
-// The on-screen companion: 3D octo + thinking-verb badge + emote sticker, driven by a pressure
-// state ({ p, masti }) from the simulator now and from the bridge in Phase 4.
+// The on-screen companion: 3D octo + thinking-verb badge + emote sticker, driven by a state
+// ({ p, masti, temps, emote }) from the simulator now and from the bridge in Phase 4.
 import '@fontsource/sora/latin-600.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
 import './companion.css';
 import { createScene3D } from './scene3d/Scene3D.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, heatColor, ROSE, PINK, mix, rgba,
-  POSE, FACE, nextEmote, emoteInterval,
+  POSE, FACE, nextEmote, emoteInterval, tempEmote, gpuHot,
 } from './mood/mood.js';
 
 const SPRITES = import.meta.glob('../assets/emotes-clean/[0-9][0-9]_*.png', { eager: true, query: '?url', import: 'default' });
 const spriteUrl = name => SPRITES[`../assets/emotes-clean/${name}.png`];
 const EMOTE_SCALE = 2; // sprite px → CSS px (sprites are ~30 px wide)
 
-export function createCompanion({ canvas, layer, model, onRect, ...sceneOptions }) {
+export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, ...sceneOptions }) {
   layer.insertAdjacentHTML('beforeend', `
     <img class="emote" alt="" style="opacity:0">
     <div class="badge" role="status" aria-live="off">
@@ -32,12 +32,18 @@ export function createCompanion({ canvas, layer, model, onRect, ...sceneOptions 
     if (written[prop] !== value) badge.style.setProperty(prop, (written[prop] = value));
   };
   const emote = layer.querySelector('.emote');
+  if (onBadgeClick) { // the badge doubles as the handle that opens the simulator dock (spec §8)
+    badge.style.pointerEvents = 'auto';
+    badge.style.cursor = 'pointer';
+    badge.title = 'Open the simulator dock';
+    badge.addEventListener('click', onBadgeClick);
+  }
 
   let octo = null; // octo box in CSS px, from Scene3D
   let state = { p: 0, masti: false };
   const scene = createScene3D(canvas, model, {
     ...sceneOptions,
-    onRect: r => { octo = r; place(); onRect?.(r); },
+    onRect: r => { octo = r; place(); },
     // Badge work rides on the octo's own frames: a separate timer made extra compositor frames
     // between the 3D ones (measured, Phase 3a).
     onFrame: () => apply(state, performance.now() / 1000),
@@ -50,6 +56,8 @@ export function createCompanion({ canvas, layer, model, onRect, ...sceneOptions 
   let emoteName = null;
   let emoteAt = 0;
   let faceTimer = 0;
+  let faceKey = '';
+  let lastRegion = '';
 
   function setVerb(word) { // vertical slot slide + blur fade (preview)
     const old = slot.querySelector('.cur');
@@ -99,7 +107,28 @@ export function createCompanion({ canvas, layer, model, onRect, ...sceneOptions 
     const ex = flipped ? octo.x + octo.width - ew * 0.6 : octo.x - ew * 0.4;
     const ey = Math.max(4, octo.y - eh * 0.55);
     moveTo(emote, Math.max(4, ex), ey);
+    emitRegion();
   }
+
+  // Clickable boxes for the window's input region: the octo, plus the badge if it's a handle.
+  function emitRegion() {
+    if (!octo || !onRegion) return;
+    const extras = [];
+    const a = anchors.get(badge);
+    if (onBadgeClick && a) extras.push(snapBox(a.x, a.y, badge.offsetWidth, badge.offsetHeight));
+    const key = JSON.stringify([octo, extras]);
+    if (key !== lastRegion) {
+      lastRegion = key;
+      onRegion({ octo, extras });
+    }
+  }
+  const snapBox = (x, y, w, h) => { // grow outward to 8 px, keep inside the window
+    const x0 = Math.max(0, Math.floor(x / 8) * 8);
+    const y0 = Math.max(0, Math.floor(y / 8) * 8);
+    const x1 = Math.min(layer.clientWidth, Math.ceil((x + w) / 8) * 8);
+    const y1 = Math.min(layer.clientHeight, Math.ceil((y + h) / 8) * 8);
+    return { x: x0, y: y0, width: Math.max(1, x1 - x0), height: Math.max(1, y1 - y0) };
+  };
 
   // Follow real moves (jump, roll, drag), not the idle bob: every re-anchor starts a 0.5 s spring
   // transition, i.e. 60 FPS compositing, and the bob crossed the box's 8 px snap every ~1.4 s
@@ -113,19 +142,26 @@ export function createCompanion({ canvas, layer, model, onRect, ...sceneOptions 
     el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   }
 
-  // Latest pressure state ({ p, masti }); applied on the next drawn frame.
+  // Latest state ({ p, masti, temps, emote }); applied on the next drawn frame.
   function update(next) {
     state = next;
   }
 
-  function apply({ p, masti }, now) {
+  function apply({ p, masti, temps, emote: picked }, now) {
     const m = moodOf(p, masti);
-    if (m !== mood) {
+    const moodChanged = m !== mood;
+    if (moodChanged) {
       mood = m;
       scene.setPose(POSE[m]);
-      clearTimeout(faceTimer);
-      faceTimer = setTimeout(() => scene.setFace(FACE[m]), 200); // eyes swap mid-crossfade
       emoteAt = 0;
+    }
+    const hot = gpuHot(temps) ? ['sweat'] : []; // GPU over 83 °C: sweat (melt arrives in 3c)
+    const key = m + hot.join();
+    if (key !== faceKey) {
+      faceKey = key;
+      const face = { ...FACE[m], extras: [...new Set([...FACE[m].extras, ...hot])] };
+      clearTimeout(faceTimer);
+      faceTimer = setTimeout(() => scene.setFace(face), moodChanged ? 200 : 0); // eyes swap mid-crossfade
     }
     const vp = verbPool(p, masti);
     if (vp !== pool || now >= verbAt) {
@@ -133,7 +169,12 @@ export function createCompanion({ canvas, layer, model, onRect, ...sceneOptions 
       setVerb(nextVerb(vp, verb));
       verbAt = now + verbInterval(p);
     }
-    if (now >= emoteAt) {
+    // sticker: an emote picked in the dock, else a temperature emote, else the mood's pool
+    const forced = picked ?? tempEmote(temps, m);
+    if (forced) {
+      if (forced !== emoteName) setEmote(forced);
+      emoteAt = 0; // back to the pool as soon as it ends
+    } else if (now >= emoteAt) {
       setEmote(nextEmote(m, emoteName));
       emoteAt = now + emoteInterval();
     }

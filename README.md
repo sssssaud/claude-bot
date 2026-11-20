@@ -6,9 +6,10 @@ tiny CPU/GPU stats and syncs the Dell G15's 4-zone keyboard RGB to its mood.
 
 ![The voxel octo: front, back and three-quarter view](docs/img/octo-phase1.png)
 
-**Status:** Phase 3a done. The octo floats on the KDE desktop (transparent, always on top,
-click-through except on the octo, draggable) with 5 moods, face expressions, a heat-coloured
-thinking-verb badge and rotating emote stickers, driven by an auto-demo until the dock (3b) lands. Full plan: [`PROMPT.md`](PROMPT.md);
+**Status:** Phase 3b done. The octo floats on the KDE desktop (transparent, always on top,
+click-through except on the octo and its badge, draggable) with 5 moods, face expressions, a
+heat-coloured thinking-verb badge and rotating emote stickers. Click the badge to open the
+simulator dock that drives it all (pressure, moods, moves, emotes, fake temperatures, keyboard strip). Full plan: [`PROMPT.md`](PROMPT.md);
 progress: [`docs/STATUS.md`](docs/STATUS.md); hardware notes: [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
 ## Setup (Nobara / Fedora)
@@ -21,7 +22,8 @@ npm install
 ## Run
 
 ```bash
-npm run app            # the desktop overlay: click the octo to spin it, drag it anywhere
+npm run app            # the desktop overlay: click the octo to spin it, drag it anywhere,
+                       # click its badge to open the simulator dock
 npm run dev:web        # http://127.0.0.1:5173 : the octo + buttons for idle, blink, turnAround, jump, roll
                        # add ?speed=0.1 to the URL to watch every move in slow motion; drag to orbit
 .venv/bin/python tools/clean_emotes.py   # rebuild assets/emotes-clean/ from the sticker sheet
@@ -51,6 +53,7 @@ npm test                                   # voxel model, face culling, motion, 
 | `ui/companion.*` | octo + badge + emote sticker, driven by a pressure state |
 | `ui/mood/` | mood engine: thresholds, verbs, colours, poses, faces, emote pools, simulator |
 | `ui/overlay.*` | the page the desktop window shows (click and drag) |
+| `ui/dock.*` | the simulator dock window |
 | `app/` | Electron: `main.js` window, `preload.cjs`, `placement.js` (multi-monitor maths), `xinput_shape.py` (click-through) |
 | `docs/` | `HARDWARE.md` (Phase 0 report), `STATUS.md` (progress) |
 

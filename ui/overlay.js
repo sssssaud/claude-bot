@@ -1,21 +1,20 @@
-// The desktop overlay page (loaded by Electron): octo + badge + emote sticker, no controls.
-// Click = turnAround (spec 3.4); press and drag = move the window.
+// The desktop overlay page (loaded by Electron): octo + badge + emote sticker.
+// Click the octo = turnAround (spec 3.4); drag = move the window; click the badge = simulator dock.
 import model from '../voxels/octo.json';
 import { createCompanion } from './companion.js';
-import { createSimulator } from './mood/mood.js';
 
 const bridge = window.octoBridge; // from app/preload.cjs
 const canvas = document.querySelector('#octo');
-const companion = createCompanion({ canvas, layer: document.querySelector('#layer'), model, orbit: false, onRect: bridge.setRect });
+const companion = createCompanion({
+  canvas, layer: document.querySelector('#layer'), model, orbit: false,
+  onRegion: bridge.setRegion, onBadgeClick: bridge.toggleDock,
+});
 const octo = companion.scene;
 window.__octo = octo; // dev handle for checks over the debug port; the page has no other API
 
-// ponytail: until the simulator dock (Phase 3b) and the bridge (Phase 4) exist, the auto-demo drives it
-const sim = createSimulator();
-const now = () => performance.now() / 1000;
-sim.setDemo(true, now());
-setInterval(() => companion.update(sim.state(now())), 100);
-window.__sim = { sim, now }; // dev handle: drive moods over the debug port
+// state comes from the main process (simulator now, bridge in Phase 4); the dock sends moves
+bridge.onState(state => { window.__state = state; companion.update(state); }); // __state: dev handle
+bridge.onPlay(name => octo.play(name));
 
 const DRAG_PX = 4; // less movement than this between press and release is a click
 let press = null;

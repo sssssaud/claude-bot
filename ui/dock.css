@@ -1,0 +1,58 @@
+/* Simulator dock. Cards, slider, buttons, switch, chips and keyboard strip ported from
+   assets/reference/ui-preview.html. */
+:root { color-scheme: dark; --bg: #17121a; --ink: #f4eae5; --mut: #b7a6a4; --line: rgba(255, 255, 255, .1);
+  --panel: rgba(255, 255, 255, .045); --terra: #E07A5F; }
+* { box-sizing: border-box; min-width: 0; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.5 Inter, system-ui, sans-serif; }
+.dock { display: grid; gap: 14px; padding: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.card h2 { font: 600 15px Inter, system-ui, sans-serif; margin: 0 0 10px; color: var(--mut); }
+.pv { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+#pv { font: 600 48px/1 Sora, sans-serif; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+#mood { font: 600 16px Inter, system-ui, sans-serif; }
+.note { font-size: 13px; color: var(--mut); margin: 8px 0 0; display: block; }
+kbd { font: 500 12px 'JetBrains Mono', monospace; background: #2a2230; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; color: var(--ink); }
+
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; margin: 6px 0 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 10px; border-radius: 99px; background: linear-gradient(90deg, #E07A5F, #FF5500 50%, #FF1E00); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -8px; border-radius: 50%; background: #fff; border: 4px solid #17121a; box-shadow: 0 0 0 2px #fff; }
+input[type=range]:focus-visible { outline: 2px solid #ffb59c; outline-offset: 2px; border-radius: 8px; }
+
+button { font: 600 14px Inter, system-ui, sans-serif; color: var(--ink); background: #2a2230; border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 10px; cursor: pointer; }
+button:hover { border-color: #6b5560; }
+button:focus-visible { outline: 2px solid #ffb59c; outline-offset: 2px; }
+button.act { background: #4a2a26; border-color: var(--terra); color: #ffe2d6; }
+#masti.act { background: #4d1c2f; border-color: #FF5C8A; }
+.moods { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.moods button:nth-child(-n+3) { grid-column: span 2; }
+.moods button:nth-child(n+4) { grid-column: span 3; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.grid button { font-weight: 500; }
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.sw { display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; min-height: 44px; }
+.sw .t { width: 44px; height: 26px; border-radius: 99px; background: #3a3040; position: relative; transition: background .2s; flex: none; }
+.sw .t::after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.sw[aria-pressed=true] .t { background: var(--terra); }
+.sw[aria-pressed=true] .t::after { transform: translateX(18px); }
+
+.src { display: flex; gap: 6px; flex-wrap: wrap; }
+.src span { font-size: 13px; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line); color: #7f7180; }
+.src span.on { color: #ffe2d6; border-color: var(--terra); background: #3a2422; }
+
+.emotes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.emotes button { min-height: 44px; padding: 4px; display: grid; place-items: center; }
+.emotes img { width: 100%; max-width: 40px; image-rendering: pixelated; }
+
+.slider { display: grid; grid-template-columns: 36px 1fr 52px; align-items: center; gap: 8px; color: var(--mut); }
+.slider b { font: 500 13px 'JetBrains Mono', monospace; color: var(--ink); text-align: right; }
+
+.kb { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px; border-radius: 10px; background: #0f0b0e; border: 1px solid #2c2430; }
+.zone { --c: #000; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 4px; border-radius: 6px; background: var(--c); }
+.zone i { height: 13px; border-radius: 3px; background: rgba(14, 10, 13, .72); }
+.kbglow { height: 10px; margin: 0 10%; border-radius: 50%; filter: blur(8px); }
+.ro { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; font: 13px 'JetBrains Mono', monospace; color: var(--mut); }
+.ro b { color: var(--ink); font-weight: 500; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) { .sw .t, .sw .t::after { transition: none; } }

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:">
+  <title>Pixel Octo · Simulator</title>
+</head>
+<body>
+  <main class="dock">
+    <section class="card" aria-labelledby="h-pressure">
+      <h2 id="h-pressure">Pressure</h2>
+      <div class="pv"><span id="pv">8%</span><span id="mood">Idle / chill</span></div>
+      <label for="pressure" class="note">Simulated workload, 0 to 100</label>
+      <input id="pressure" type="range" min="0" max="100" value="8">
+      <div class="moods" id="moods">
+        <button data-p="8">Idle</button><button data-p="32">Light</button><button data-p="60">Deep</button><button data-p="92">Overdrive</button><button id="masti">Masti</button>
+      </div>
+      <div class="row"><button class="sw" id="demo" aria-pressed="false"><span class="t"></span><span>Auto-demo loop</span></button></div>
+      <p class="note">Masti also starts on its own after 25 s of idle. <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>M</kbd> toggles it.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-src">
+      <h2 id="h-src">Input source</h2>
+      <div class="src"><span>Claude Code hooks</span><span>System load</span><span class="on">Simulator</span></div>
+      <p class="note">Hooks and CPU/GPU load connect through the bridge (Phases 4–6).</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-moves">
+      <h2 id="h-moves">Moves</h2>
+      <div class="grid" id="moves"></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-emotes">
+      <h2 id="h-emotes">Emotes</h2>
+      <div class="emotes" id="emotes"></div>
+      <p class="note">Click one to show it on the octo for 6 s.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-temps">
+      <h2 id="h-temps">Telemetry override</h2>
+      <label class="slider" for="cpu">CPU <input id="cpu" type="range" min="30" max="100" value="55"><b id="cpuv">55 °C</b></label>
+      <label class="slider" for="gpu">GPU <input id="gpu" type="range" min="30" max="95" value="50"><b id="gpuv">50 °C</b></label>
+      <p class="note">CPU over 90 °C: sick. GPU over 83 °C: sweat (melt comes in 3c). Both under 45 °C while idle: snowy.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-kb">
+      <h2 id="h-kb">Keyboard backlight · G15 4-zone · mock driver</h2>
+      <div class="kb" id="kb"></div>
+      <div class="kbglow" id="kbg"></div>
+      <div class="ro"><span>Effect <b id="eff">Breathing 0.2 Hz</b></span><span>Zone 1 <b id="hex">#E07A5F</b></span><span>Writes <b id="wps">20/s</b></span></div>
+    </section>
+  </main>
+  <script type="module" src="./dock.js"></script>
+</body>
+</html>

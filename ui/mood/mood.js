@@ -22,7 +22,7 @@ export function nextVerb(pool, current, random = Math.random) {
 }
 
 // ---- colours (spec §4): #E07A5F → #FF5500 → #FF1E00; masti swings #FF0055 ↔ #FF758F ----
-const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+export const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 export const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 export const toHex = c => `#${c.map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
 export const rgba = (c, a = 1) => `rgba(${c.map(v => Math.round(Math.min(255, Math.max(0, v)))).join(',')},${a})`;
@@ -109,3 +109,12 @@ export function createSimulator() {
     },
   };
 }
+
+// ---- context emotes from temperatures (spec §3.6; thresholds become config.yaml in Phase 4) ----
+export const TEMP = { cpuSick: 90, gpuHot: 83, cool: 45 }; // °C
+export function tempEmote({ cpu, gpu } = {}, mood) {
+  if (cpu > TEMP.cpuSick) return '21_sick';
+  if (cpu < TEMP.cool && gpu < TEMP.cool && mood === 'idle') return '32_snowy';
+  return null;
+}
+export const gpuHot = ({ gpu } = {}) => gpu > TEMP.gpuHot; // sweat now, melt in Phase 3c

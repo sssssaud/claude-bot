@@ -3,8 +3,8 @@
 whatever is below. Electron can only set the bounding shape (setShape); this is the same
 mechanism Electron's own setIgnoreMouseEvents uses on X11. stdlib ctypes only.
 
-usage: xinput_shape.py <window id>   then one "x y width height" line per update on stdin
-       (any other line = empty input region, i.e. fully click-through)
+usage: xinput_shape.py <window id>   then one line per update on stdin with 0+ rectangles,
+       "x y width height [x y width height ...]" (an empty line = fully click-through)
 """
 import ctypes
 import ctypes.util
@@ -30,10 +30,12 @@ def main():
         sys.exit('xinput_shape: cannot open the X display')
     for line in sys.stdin:  # ends when Electron exits and the pipe closes
         try:
-            x, y, w, h = (int(v) for v in line.split())
-            rects = (Rect * 1)(Rect(x, y, w, h))
+            nums = [int(v) for v in line.split()]
+            if len(nums) % 4:
+                raise ValueError
+            rects = (Rect * (len(nums) // 4))(*(Rect(*nums[i:i + 4]) for i in range(0, len(nums), 4)))
         except ValueError:
-            rects = (Rect * 0)()
+            continue  # malformed line: keep the last good region
         xext.XShapeCombineRectangles(display, win, SHAPE_INPUT, 0, 0, rects, len(rects), SHAPE_SET, UNSORTED)
         x11.XFlush(display)
 

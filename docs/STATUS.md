@@ -5,11 +5,34 @@
 | 0 Hardware report | ✅ done 2026-11-20 | `docs/HARDWARE.md`. Read-only, nothing installed or written to hardware. |
 | 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
 | 2 Electron overlay | ✅ done 2026-11-20, hand-checked | Tag `phase-2-working`. |
-| 3 Badge + moods + dock (fake data) | 🔨 3a ✅ (moods, face, badge, sticker) · 3b dock next · 3c moves | |
+| 3 Badge + moods + dock (fake data) | 🔨 3a ✅ moods/face/badge · 3b ✅ simulator dock · 3c moves next | |
 | 4 Bridge + RGB | — | Tier 1 OpenRGB SDK is viable (see HARDWARE.md) |
 | 5 Telemetry HUD | — | Never `lspci` in the poll loop (it wakes the dGPU) |
 | 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
+
+## Phase 3b: simulator dock (2026-11-20)
+
+- The simulator moved into Electron's main process: one shared state ({ p, masti, demo, temps,
+  emote }) sent to the overlay and the dock at 10 Hz. In Phase 4 the bridge takes its place.
+- **Click the badge** to open/close the dock (spec §8: a handle next to the badge). The overlay's
+  click region is now the octo + the badge (several X11 input rectangles; `xinput_shape.py` takes
+  `x y w h` groups per line).
+- `ui/dock.*` (styled from the approved preview): pressure slider, mood buttons, auto-demo, input
+  source chips, move tester, 48-emote browser (click = show it on the octo for 6 s), CPU/GPU
+  temperature override, 4-zone keyboard strip with effect name, hex and writes/s (mock, 20/s).
+- Temperatures (spec §3.6): CPU > 90 °C → `sick` sticker; GPU > 83 °C → sweat on the face; both
+  < 45 °C while idle → `snowy`. Keyboard effects in `ui/mood/keyboard.js` (ported from the
+  preview; the bridge drives the real keyboard in Phase 4). 4 new tests (22 total).
+- Ctrl+Shift+M → masti via Electron's globalShortcut (under XWayland it only fires while an X11
+  window has focus; the bridge's `POST /masti` + a KDE shortcut is the fallback, Phase 4).
+- Frame cap: moves drew **119 FPS** on this 120 Hz panel; the gate now caps acting at 60 FPS
+  (spec §3.3), tested at 60/120/144 Hz.
+- Checked on the real app over DevTools: badge click opens and hides the dock; dock pressure,
+  mood buttons, masti, emote picks, temperature sliders and move buttons all reach the overlay;
+  keyboard strip at 20–21 writes/s; idle CPU with the dock hidden 26 % of one core (same as 3a);
+  dGPU asleep. (A false alarm on the way: a `const` re-declared in the DevTools console silently
+  skipped a test step, not an app bug.)
 
 ## Phase 3a: moods, face, badge, emote sticker (2026-11-20)
 

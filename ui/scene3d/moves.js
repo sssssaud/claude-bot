@@ -63,12 +63,14 @@ export const MOVES = {
   },
 };
 
-// Frame budget: every display frame while acting, ~`fps` when idle. Returns the new deadline
-// when this frame should draw, or null to skip. The deadline steps by 1/fps (not "1/fps since
-// the last draw", which lands on every 3rd 60 Hz frame = 20 FPS); max() stops catch-up bursts.
-export function frameGate(idle, now, deadline, fps = 24) {
-  if (!idle) return now;
-  if (now < deadline) return null;
+// Frame budget (spec §3.3): ~60 FPS while acting, ~24 when idle, on any display rate (this
+// laptop's panel runs at 120 Hz: uncapped, a move drew 119 FPS). Returns the new deadline when
+// this frame should draw, or null to skip. The deadline steps by 1/fps (not "1/fps since the
+// last draw", which lands on every 3rd 60 Hz frame = 20 FPS); max() stops catch-up bursts.
+export function frameGate(idle, now, deadline, idleFps = 24, activeFps = 60) {
+  const fps = idle ? idleFps : activeFps;
+  const slack = 0.002; // a 60 Hz frame can arrive a hair early; don't skip it
+  if (now < deadline - slack) return null;
   return Math.max(deadline + 1 / fps, now - 1 / fps);
 }
 

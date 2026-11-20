@@ -8,6 +8,6 @@ export default {
     outDir: '../dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 800, // three.js alone is ~700 kB; fine for a local app
-    rolldownOptions: { input: { index: resolve('ui/index.html'), overlay: resolve('ui/overlay.html') } },
+    rolldownOptions: { input: { index: resolve('ui/index.html'), overlay: resolve('ui/overlay.html'), dock: resolve('ui/dock.html') } },
   },
 };

@@ -1,15 +1,20 @@
-// Electron main: a transparent, always-on-top window that shows the octo. Clicks outside the
-// octo fall through; drag moves it; the spot is remembered per display.
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+// Electron main: the octo overlay (transparent, always on top, click-through except the octo
+// and its badge), the simulator dock, and the simulator state both windows share. In Phase 4
+// the bridge replaces the simulator as the source of that state.
+import { app, BrowserWindow, globalShortcut, ipcMain, screen } from 'electron';
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nearestDisplay, clampOcto, toSaved, fromSaved } from './placement.js';
+import { createSimulator } from '../ui/mood/mood.js';
+import { MOVES } from '../ui/scene3d/moves.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SIZE = { width: 640, height: 360 }; // room for a jump, a roll and the badge; empty space is click-through
 const NOMINAL_OCTO = { x: 232, y: 136, width: 176, height: 168 }; // octo box at rest, until the page reports it
+const MOVE_NAMES = ['idle', 'blink', ...Object.keys(MOVES)];
+const MASTI_KEY = 'Control+Shift+M';
 
 // Native Wayland apps can't keep themselves on top or pick their position; XWayland can.
 // The platform is chosen before main.js runs, so appendSwitch() is too late: it left the
@@ -24,7 +29,10 @@ if (app.commandLine.getSwitchValue('ozone-platform') !== PLATFORM && !app.comman
 }
 
 let win;
+let dock = null;
+let quitting = false;
 let octo = NOMINAL_OCTO;
+let extraRects = []; // other clickable boxes in the overlay (the badge)
 let shaper = null;
 const savePath = () => join(app.getPath('userData'), 'position.json');
 
@@ -56,17 +64,38 @@ function createWindow() {
     show: false,
     webPreferences: { preload: join(here, 'preload.cjs') },
   });
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.webContents.on('will-navigate', e => e.preventDefault());
+  lockDown(win);
   startShaper();
-  setInputRegion(null); // fully click-through until the page reports the octo
+  setInputRegion(); // fully click-through until the page reports the octo
   win.once('ready-to-show', () => win.showInactive());
+  win.on('closed', () => app.quit());
   win.loadFile(join(here, '../dist/overlay.html'));
 }
 
-// Click-through: the window's input region is the octo's box, so the compositor itself sends
-// every click outside it to the window below. ponytail: not the spec's cursor polling; under
-// XWayland, X11 apps don't see the cursor while it's over Wayland windows, so polling can't work.
+// The simulator dock: a normal window, hidden until the badge is clicked; closing just hides it.
+function toggleDock() {
+  if (!dock) {
+    dock = new BrowserWindow({
+      width: 380, height: 780, show: false, title: 'Pixel Octo · Simulator',
+      backgroundColor: '#17121a', autoHideMenuBar: true,
+      webPreferences: { preload: join(here, 'dock-preload.cjs') },
+    });
+    lockDown(dock);
+    dock.on('close', e => { if (!quitting) { e.preventDefault(); dock.hide(); } });
+    dock.once('ready-to-show', () => dock.show());
+    dock.loadFile(join(here, '../dist/dock.html'));
+  } else if (dock.isVisible()) dock.hide();
+  else dock.show();
+}
+
+function lockDown(w) { // our own pages only: no new windows, no navigation away
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  w.webContents.on('will-navigate', e => e.preventDefault());
+}
+
+// Click-through: the window's input region is the octo's box (plus the badge), so the compositor
+// itself sends every other click to the window below. ponytail: not the spec's cursor polling;
+// under XWayland, X11 apps don't see the cursor while it's over Wayland windows.
 function startShaper() {
   if (PLATFORM !== 'x11') return; // native Wayland: setShape() below
   try {
@@ -84,9 +113,9 @@ function startShaper() {
   }
 }
 
-function setInputRegion(r) {
-  if (shaper) shaper.stdin.write(r ? `${r.x} ${r.y} ${r.width} ${r.height}\n` : '\n');
-  else win.setShape(r ? [r] : []);
+function setInputRegion(rects = []) {
+  if (shaper) shaper.stdin.write(`${rects.map(r => `${r.x} ${r.y} ${r.width} ${r.height}`).join(' ')}\n`);
+  else win.setShape(rects);
 }
 
 // Keep the octo inside the nearest display and remember where it is.
@@ -102,26 +131,64 @@ function settle() {
   }
 }
 
-const fromPage = e => e.sender === win?.webContents;
-const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+// ---- simulator state, shared by the overlay and the dock (10 Hz) ----
+const sim = createSimulator();
+const clock = () => performance.now() / 1000;
+let temps = { cpu: 55, gpu: 50 }; // fake °C from the dock's telemetry override
+let picked = null; // { emote, until }: an emote chosen in the dock
+setInterval(() => {
+  const now = clock();
+  const state = { ...sim.state(now), temps, emote: picked && now < picked.until ? picked.emote : null };
+  win?.webContents.send('sim:state', state);
+  if (dock?.isVisible()) dock.webContents.send('sim:state', state);
+}, 100);
 
-ipcMain.on('octo:rect', (e, r) => {
-  if (!fromPage(e) || !r || !isInt(r.x, 0, SIZE.width) || !isInt(r.y, 0, SIZE.height)
-    || !isInt(r.width, 1, SIZE.width - r.x) || !isInt(r.height, 1, SIZE.height - r.y)) return;
+// ---- IPC: every message is checked for its sender and its values ----
+const fromOverlay = e => e.sender === win?.webContents;
+const fromDock = e => e.sender === dock?.webContents;
+const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+const isNum = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+const isRect = r => r && isInt(r.x, 0, SIZE.width) && isInt(r.y, 0, SIZE.height)
+  && isInt(r.width, 1, SIZE.width - r.x) && isInt(r.height, 1, SIZE.height - r.y);
+const pick = r => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+
+ipcMain.on('octo:region', (e, region) => {
+  if (!fromOverlay(e) || !isRect(region?.octo)) return;
+  const extras = Array.isArray(region.extras) ? region.extras.slice(0, 3) : [];
+  if (!extras.every(isRect)) return;
   const first = octo === NOMINAL_OCTO;
-  octo = { x: r.x, y: r.y, width: r.width, height: r.height };
-  setInputRegion(octo);
+  octo = pick(region.octo);
+  extraRects = extras.map(pick);
+  setInputRegion([octo, ...extraRects]);
   if (first) settle(); // the startup spot used a guessed box; clamp again with the real one
 });
 ipcMain.on('octo:move', (e, x, y) => {
-  if (fromPage(e) && isInt(x, -1e5, 1e5) && isInt(y, -1e5, 1e5)) win.setPosition(x, y);
+  if (fromOverlay(e) && isInt(x, -1e5, 1e5) && isInt(y, -1e5, 1e5)) win.setPosition(x, y);
 });
-ipcMain.on('octo:drop', e => {
-  if (fromPage(e)) settle();
+ipcMain.on('octo:drop', e => { if (fromOverlay(e)) settle(); });
+ipcMain.on('dock:toggle', e => { if (fromOverlay(e)) toggleDock(); });
+
+ipcMain.on('sim:pressure', (e, v) => { if (fromDock(e) && isNum(v, 0, 100)) sim.setPressure(v, clock()); });
+ipcMain.on('sim:masti', e => { if (fromDock(e)) sim.toggleMasti(clock()); });
+ipcMain.on('sim:demo', (e, on) => { if (fromDock(e) && typeof on === 'boolean') sim.setDemo(on, clock()); });
+ipcMain.on('sim:temps', (e, t) => {
+  if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110)) temps = { cpu: t.cpu, gpu: t.gpu };
 });
+ipcMain.on('sim:emote', (e, name) => {
+  if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) picked = { emote: name, until: clock() + 6 };
+});
+ipcMain.on('octo:play', (e, name) => {
+  if (fromDock(e) && MOVE_NAMES.includes(name)) win?.webContents.send('octo:play', name);
+});
+ipcMain.handle('dock:moves', e => (fromDock(e) ? MOVE_NAMES : []));
 
 app.whenReady().then(() => {
   createWindow();
   for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, () => win && settle());
+  // Under XWayland this only fires while an X11 window has focus; the bridge's POST /masti
+  // (Phase 4) is the fallback for a KDE custom shortcut.
+  if (!globalShortcut.register(MASTI_KEY, () => sim.toggleMasti(clock()))) console.error(`could not register ${MASTI_KEY}`);
 });
+app.on('before-quit', () => { quitting = true; });
+app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());

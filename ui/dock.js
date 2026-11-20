@@ -1,0 +1,99 @@
+// Simulator dock: drives the shared simulator in the main process and shows its state.
+import '@fontsource/sora/latin-600.css';
+import '@fontsource/jetbrains-mono/latin-500.css';
+import './dock.css';
+import { NAMES, moodOf, toHex, rgba } from './mood/mood.js';
+import { EFFECTS, stepZones } from './mood/keyboard.js';
+
+const bridge = window.dockBridge; // from app/dock-preload.cjs
+const $ = id => document.getElementById(id);
+const SPRITES = import.meta.glob('../assets/emotes-clean/[0-9][0-9]_*.png', { eager: true, query: '?url', import: 'default' });
+const MOODS = ['idle', 'light', 'deep', 'overdrive', 'masti'];
+const label = name => name.slice(3).replace(/_/g, ' ');
+
+let state = { p: 8, masti: false, demo: false };
+let sliding = false; // don't fight the user's thumb with incoming state
+
+// ---- pressure, moods, demo ----
+const pressure = $('pressure');
+pressure.addEventListener('input', () => { sliding = true; bridge.setPressure(+pressure.value); });
+pressure.addEventListener('change', () => { sliding = false; });
+$('moods').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'masti') bridge.toggleMasti();
+  else bridge.setPressure(+b.dataset.p);
+});
+$('demo').addEventListener('click', () => bridge.setDemo(!state.demo));
+
+// ---- move tester ----
+bridge.moves().then(names => {
+  for (const name of names) {
+    const b = document.createElement('button');
+    b.dataset.move = name;
+    b.textContent = name;
+    $('moves').append(b);
+  }
+});
+$('moves').addEventListener('click', e => {
+  const b = e.target.closest('[data-move]');
+  if (b) bridge.play(b.dataset.move);
+});
+
+// ---- emote browser ----
+for (const [path, url] of Object.entries(SPRITES).sort()) {
+  const name = path.match(/(\d\d_[a-z_]+)\.png$/)[1];
+  const b = document.createElement('button');
+  b.dataset.emote = name;
+  b.title = label(name);
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = label(name);
+  b.append(img);
+  $('emotes').append(b);
+}
+$('emotes').addEventListener('click', e => {
+  const b = e.target.closest('[data-emote]');
+  if (b) bridge.showEmote(b.dataset.emote);
+});
+
+// ---- telemetry override ----
+for (const id of ['cpu', 'gpu']) {
+  $(id).addEventListener('input', () => {
+    $(`${id}v`).textContent = `${$(id).value} °C`;
+    bridge.setTemps({ cpu: +$('cpu').value, gpu: +$('gpu').value });
+  });
+}
+
+// ---- shared state from the main process (10 Hz while the dock is open) ----
+const moodButtons = [...$('moods').children];
+bridge.onState(s => {
+  state = s;
+  const m = moodOf(s.p, s.masti);
+  $('pv').textContent = `${Math.round(s.p)}%`;
+  $('mood').textContent = NAMES[m];
+  if (!sliding) pressure.value = Math.round(s.p);
+  $('demo').setAttribute('aria-pressed', String(Boolean(s.demo)));
+  moodButtons.forEach((b, i) => b.classList.toggle('act', MOODS[i] === m));
+  $('eff').textContent = EFFECTS[m];
+});
+
+// ---- mock keyboard strip: 20 writes/s, each zone eases toward the mood's effect ----
+$('kb').innerHTML = `<div class="zone">${'<i></i>'.repeat(20)}</div>`.repeat(4);
+const zoneEls = [...document.querySelectorAll('.zone')];
+let zones = Array.from({ length: 4 }, () => [224, 122, 95]);
+let writes = 0;
+let since = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  zones = stepZones(zones, moodOf(state.p, state.masti), now / 1000);
+  zoneEls.forEach((el, z) => el.style.setProperty('--c', rgba(zones[z])));
+  $('kbg').style.background = rgba(zones[1], 0.55);
+  $('hex').textContent = toHex(zones[0]);
+  writes++;
+  if (now - since >= 1000) {
+    $('wps').textContent = `${writes}/s`;
+    writes = 0;
+    since = now;
+  }
+}, 50);
