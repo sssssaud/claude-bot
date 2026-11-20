@@ -7,6 +7,7 @@ Full spec: `PROMPT.md` (read it fully before planning). UI reference: `assets/re
 
 ## Machine
 Dell G15 5530 · i7 13th-gen HX · RTX 3050 6 GB + Intel iGPU (hybrid) · 16 GB RAM · Nobara Linux (Fedora-based, KDE Plasma, Wayland). Use `dnf`, never `apt`.
+**Plasma X11 session does not work on this laptop (Saud, 2026-11-20): never suggest it as a fallback.** The app needs only XWayland inside the Wayland session. Fallbacks: `CLAUDE_BOT_OZONE=wayland` (native Wayland window) or the bottom-strip window (PROMPT.md §11).
 
 ## Directory map
 ```

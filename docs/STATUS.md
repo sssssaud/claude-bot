@@ -72,6 +72,11 @@
 7. **Position is clamped by the octo's box, not the window's**, so the octo can sit flush against
    any screen edge while the empty part of the window hangs off-screen.
 
+## Constraints
+- **No Plasma X11 session** on this laptop (it doesn't work, per Saud). The spec's "log into a Plasma
+  X11 session" fallback (PROMPT.md §11) is out. The overlay runs in the Wayland session through
+  XWayland; fallbacks are `CLAUDE_BOT_OZONE=wayland` or a full-width bottom-strip window.
+
 ## Blockers / open questions
 - Real-mouse check of Phase 2 (see above).
 - Screen-lock pause (spec 3.3) not done yet: Phase 7, together with the tray's Sleep.
