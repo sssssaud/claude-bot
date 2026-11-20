@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { nearestDisplay, clampOcto, toSaved, fromSaved } from './placement.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const SIZE = { width: 460, height: 340 }; // room for a jump and a roll; empty space is click-through
-const NOMINAL_OCTO = { x: 144, y: 128, width: 172, height: 157 }; // octo box at rest, until the page reports it
+const SIZE = { width: 640, height: 360 }; // room for a jump, a roll and the badge; empty space is click-through
+const NOMINAL_OCTO = { x: 232, y: 136, width: 176, height: 168 }; // octo box at rest, until the page reports it
 
 // Native Wayland apps can't keep themselves on top or pick their position; XWayland can.
 // The platform is chosen before main.js runs, so appendSwitch() is too late: it left the
@@ -108,8 +108,10 @@ const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 ipcMain.on('octo:rect', (e, r) => {
   if (!fromPage(e) || !r || !isInt(r.x, 0, SIZE.width) || !isInt(r.y, 0, SIZE.height)
     || !isInt(r.width, 1, SIZE.width - r.x) || !isInt(r.height, 1, SIZE.height - r.y)) return;
+  const first = octo === NOMINAL_OCTO;
   octo = { x: r.x, y: r.y, width: r.width, height: r.height };
   setInputRegion(octo);
+  if (first) settle(); // the startup spot used a guessed box; clamp again with the real one
 });
 ipcMain.on('octo:move', (e, x, y) => {
   if (fromPage(e) && isInt(x, -1e5, 1e5) && isInt(y, -1e5, 1e5)) win.setPosition(x, y);

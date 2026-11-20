@@ -6,8 +6,9 @@ tiny CPU/GPU stats and syncs the Dell G15's 4-zone keyboard RGB to its mood.
 
 ![The voxel octo: front, back and three-quarter view](docs/img/octo-phase1.png)
 
-**Status:** Phase 2 of 7 done. The octo floats on the KDE desktop: transparent, always on top,
-click-through except on the octo, draggable, remembers where you put it. Full plan: [`PROMPT.md`](PROMPT.md);
+**Status:** Phase 3a done. The octo floats on the KDE desktop (transparent, always on top,
+click-through except on the octo, draggable) with 5 moods, face expressions, a heat-coloured
+thinking-verb badge and rotating emote stickers, driven by an auto-demo until the dock (3b) lands. Full plan: [`PROMPT.md`](PROMPT.md);
 progress: [`docs/STATUS.md`](docs/STATUS.md); hardware notes: [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
 ## Setup (Nobara / Fedora)
@@ -47,7 +48,9 @@ npm test                                   # voxel model, face culling, motion, 
 | `tools/clean_emotes.py` | sheet → clean sprites |
 | `voxels/octo.json` | hand-authored voxel model (text layers, format in its `about` field) |
 | `ui/scene3d/` | `Scene3D.js` renderer, `moves.js` motion library, `voxels.js` model parser |
-| `ui/overlay.*` | the page the desktop window shows (octo only, click and drag) |
+| `ui/companion.*` | octo + badge + emote sticker, driven by a pressure state |
+| `ui/mood/` | mood engine: thresholds, verbs, colours, poses, faces, emote pools, simulator |
+| `ui/overlay.*` | the page the desktop window shows (click and drag) |
 | `app/` | Electron: `main.js` window, `preload.cjs`, `placement.js` (multi-monitor maths), `xinput_shape.py` (click-through) |
 | `docs/` | `HARDWARE.md` (Phase 0 report), `STATUS.md` (progress) |
 

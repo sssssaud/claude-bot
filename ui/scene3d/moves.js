@@ -72,8 +72,23 @@ export function frameGate(idle, now, deadline, fps = 24) {
   return Math.max(deadline + 1 / fps, now - 1 / fps);
 }
 
-// Base layer (bob, breathing, blink) plus a queue of one-shots on top.
+// Base layer (mood pose: bob, lean, tilt, bounce, jitter; breathing; blink) plus a queue of
+// one-shots on top. A mood change crossfades the pose over 0.4 s.
+const CALM = { bobHz: 0.5, bobAmp: 0.35, lean: 0, tilt: 0, bounce: 0, jitter: 0 };
+const MOOD_FADE = 0.4;
+
 export function createPlayer(random = Math.random) {
+  let moodFrom = CALM;
+  let moodTo = CALM;
+  let moodAt = -Infinity;
+  let phase = 0; // bob phase, accumulated so a speed change never jumps
+  let lastNow = null;
+  const blendMood = now => {
+    const k = smooth(Math.min(1, Math.max(0, (now - moodAt) / MOOD_FADE)));
+    const m = {};
+    for (const key of Object.keys(CALM)) m[key] = moodFrom[key] + (moodTo[key] - moodFrom[key]) * k;
+    return m;
+  };
   const queue = [];
   let cur = null; // { name, start, dir }
   let offsetX = 0;
@@ -106,22 +121,28 @@ export function createPlayer(random = Math.random) {
     if (!cur && queue.length) cur = { name: queue.shift(), start: now, dir: offsetX > 0 ? -1 : 1 };
     if (now >= nextBlink) { blinkUntil = now + 0.12; nextBlink = now + 3 + 2 * random(); }
 
+    const m = blendMood(now);
+    phase += TAU * m.bobHz * (lastNow === null ? 0 : Math.min(0.1, Math.max(0, now - lastNow)));
+    lastNow = now;
+    const shake = () => m.jitter * (random() * 2 - 1);
     const p = {
       ...REST,
-      x: offsetX,
-      y: 0.35 * Math.sin(TAU * 0.5 * now), // idleBob
+      x: offsetX + shake(),
+      y: m.bobAmp * Math.sin(phase) + m.bounce * Math.abs(Math.sin(TAU * 3 * now)) + shake(), // idleBob
+      rotX: m.lean,
+      rotZ: m.tilt * (1 + 0.3 * Math.sin(2 * now)),
       squash: 1 + 0.02 * Math.sin(TAU * 0.25 * now), // breathing
       eyes: now < blinkUntil ? 'closed' : 'open',
     };
     if (cur) {
-      const m = MOVES[cur.name].pose((now - cur.start) / MOVES[cur.name].dur, cur.dir);
-      p.x += m.x ?? 0;
-      p.y += m.y ?? 0;
-      p.rotX = m.rotX ?? 0;
-      p.rotY = m.rotY ?? 0;
-      p.rotZ = m.rotZ ?? 0;
-      p.squash *= m.squash ?? 1;
-      p.legAmp = m.legAmp ?? 1;
+      const mv = MOVES[cur.name].pose((now - cur.start) / MOVES[cur.name].dur, cur.dir);
+      p.x += mv.x ?? 0;
+      p.y += mv.y ?? 0;
+      p.rotX += mv.rotX ?? 0;
+      p.rotY += mv.rotY ?? 0;
+      p.rotZ += mv.rotZ ?? 0;
+      p.squash *= mv.squash ?? 1;
+      p.legAmp = mv.legAmp ?? 1;
     }
     if (from) {
       const k = (now - fromAt) / 0.25;
@@ -131,5 +152,13 @@ export function createPlayer(random = Math.random) {
     return (last = p);
   }
 
-  return { play, pose, busy: () => !!cur || queue.length > 0 || !!from };
+  // Switch the base layer to a mood pose ({ bobHz, bobAmp, lean, tilt, bounce, jitter }).
+  function setMood(pose, now) {
+    moodFrom = blendMood(now);
+    moodTo = { ...CALM, ...pose };
+    moodAt = now;
+  }
+
+  const fading = () => lastNow !== null && lastNow - moodAt < MOOD_FADE; // keep 60 FPS through a mood crossfade
+  return { play, pose, setMood, busy: () => !!cur || queue.length > 0 || !!from || fading() };
 }

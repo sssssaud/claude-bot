@@ -1,15 +1,38 @@
-// Phase 1 test page: the 3D octo in a plain browser tab, with a button per move.
+// Browser test page: the companion with move buttons and simulator controls.
 import model from '../voxels/octo.json';
-import { createScene3D } from './scene3d/Scene3D.js';
+import { createCompanion } from './companion.js';
+import { createSimulator, NAMES, moodOf } from './mood/mood.js';
 
 // ?speed=0.1 plays every move in slow motion, to check timing frame by frame
 const speed = Number(new URLSearchParams(location.search).get('speed'));
-const octo = createScene3D(document.querySelector('#octo'), model, { speed: speed > 0 && speed <= 4 ? speed : 1 });
+const companion = createCompanion({
+  canvas: document.querySelector('#octo'),
+  layer: document.querySelector('#layer'),
+  model,
+  speed: speed > 0 && speed <= 4 ? speed : 1,
+});
+const octo = companion.scene;
 
 for (const button of document.querySelectorAll('[data-move]')) {
   button.addEventListener('click', () => octo.play(button.dataset.move));
 }
 document.querySelector('#outline').addEventListener('change', e => octo.setOutline(e.target.checked));
+
+const sim = createSimulator();
+const now = () => performance.now() / 1000;
+const pressure = document.querySelector('#pressure');
+const demo = document.querySelector('#demo');
+const label = document.querySelector('#mood');
+pressure.addEventListener('input', () => { sim.setPressure(+pressure.value, now()); demo.checked = false; });
+document.querySelector('#masti').addEventListener('click', () => { sim.toggleMasti(now()); demo.checked = false; });
+demo.addEventListener('change', () => sim.setDemo(demo.checked, now()));
+
+setInterval(() => {
+  const s = sim.state(now());
+  companion.update(s);
+  if (s.demo) pressure.value = Math.round(s.p);
+  label.textContent = NAMES[moodOf(s.p, s.masti)];
+}, 100);
 
 const stats = document.querySelector('#stats');
 setInterval(() => {

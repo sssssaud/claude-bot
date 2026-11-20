@@ -1,20 +1,13 @@
 {
-  "about": "Pixel Octo base model. 1 voxel = 1 octo pixel. Each part: at = [x, y, z] of the top-left of slice 0; slices[0] is the front (z goes down per slice), rows run top to bottom (y goes down per row); '.' is empty, other chars are palette keys. thick < 1 makes a flat decal (face parts). x right, y up, z towards the viewer.",
-  "palette": {
-    "o": "#F87A4B",
-    "s": "#D2562F",
-    "e": "#191617"
-  },
+  "about": "Pixel Octo base model. 1 voxel = 1 octo pixel. Each part: at = [x, y, z] of the top-left of slice 0; slices[0] is the front (z goes down per slice), rows run top to bottom (y goes down per row); '.' is empty, other chars are palette keys. thick < 1 makes a flat decal (face parts). x right, y up, z towards the viewer. Face parts are named eyes.*, mouth.*, extra.*; Scene3D.setFace() shows one eyes, one mouth (or none) and any extras.",
+  "palette": {"o": "#F87A4B", "s": "#D2562F", "e": "#191617", "h": "#F8363B", "p": "#EF9B81", "w": "#FFF4EE", "t": "#6EC1FF", "a": "#E8283C", "d": "#86CCFF"},
   "parts": {
-    "body": {
-      "at": [0, 10, 3],
-      "slices": [
+    "body": { "at": [0, 10, 3], "slices": [
         ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
         ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
         ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
         ["...oooooo...", "..oooooooo..", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo."]
-      ]
-    },
+      ] },
     "armL": { "at": [-1, 5, 2], "slices": [["o", "o"], ["o", "o"]] },
     "armR": { "at": [12, 5, 2], "slices": [["o", "o"], ["o", "o"]] },
     "legF0": { "at": [1, 1, 3], "slices": [["s", "s"]] },
@@ -25,7 +18,21 @@
     "legB1": { "at": [4, 1, 0], "slices": [["s", "s"]] },
     "legB2": { "at": [7, 1, 0], "slices": [["s", "s"]] },
     "legB3": { "at": [10, 1, 0], "slices": [["s", "s"]] },
-    "eyesOpen": { "at": [3, 6, 3.6], "thick": 0.2, "slices": [["e....e", "e....e"]] },
-    "eyesClosed": { "at": [3, 5, 3.6], "thick": 0.2, "hidden": true, "slices": [["e....e"]] }
+    "eyes.open": { "at": [3, 6, 3.6], "thick": 0.2, "slices": [["e....e", "e....e"]] },
+    "eyes.closed": { "at": [3, 5, 3.6], "thick": 0.2, "hidden": true, "slices": [["e....e"]] },
+    "eyes.sleepy": { "at": [2, 5, 3.6], "thick": 0.2, "hidden": true, "slices": [["ee....ee"]] },
+    "eyes.happy": { "at": [2, 6, 3.6], "thick": 0.2, "hidden": true, "slices": [[".e....e.", "e.e..e.e"]] },
+    "eyes.angry": { "at": [2, 6, 3.6], "thick": 0.2, "hidden": true, "slices": [["e......e", ".ee..ee."]] },
+    "eyes.wink": { "at": [3, 6, 3.6], "thick": 0.2, "hidden": true, "slices": [["e....e.", "e...e.e"]] },
+    "eyes.heart": { "at": [2, 7, 3.6], "thick": 0.2, "hidden": true, "slices": [["h.h..h.h", "hhh..hhh", ".h....h."]] },
+    "eyes.dead": { "at": [2, 7, 3.6], "thick": 0.2, "hidden": true, "slices": [["e.e..e.e", ".e....e.", "e.e..e.e"]] },
+    "mouth.smile": { "at": [4, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["e..e", ".ee."]] },
+    "mouth.o": { "at": [5, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["ee", "ee"]] },
+    "mouth.grit": { "at": [4, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["wwww", "eeee"]] },
+    "mouth.smirk": { "at": [5, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["..e", "ee."]] },
+    "extra.blush": { "at": [1, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["pp......pp"]] },
+    "extra.tears": { "at": [3, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["t....t", "t....t"]] },
+    "extra.sweat": { "at": [10, 9, 3.6], "thick": 0.2, "hidden": true, "slices": [["d", "d"]] },
+    "extra.anger": { "at": [9, 12, 3.6], "thick": 0.2, "hidden": true, "slices": [[".a.", "aaa", ".a."]] }
   }
 }

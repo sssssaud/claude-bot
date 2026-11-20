@@ -1,0 +1,46 @@
+/* Badge + emote sticker over the 3D octo. Look ported from assets/reference/ui-preview.html. */
+.layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.badge {
+  position: absolute; left: 0; top: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px 7px 10px; border-radius: 99px;
+  border: 1px solid var(--edge, rgba(224, 122, 95, .75));
+  background: var(--fill, rgba(73, 39, 39, .78));
+  color: var(--ink, #f3c3b3);
+  box-shadow: var(--glow, none);
+  font: 600 15px Sora, Inter, system-ui, sans-serif;
+  white-space: nowrap;
+  will-change: transform;
+  /* springy follow (the preview's JS spring as a transition). No colour transitions: restarted by
+     every 10 Hz update they never stop, which keeps the compositor at 60 FPS (measured, Phase 3a). */
+  transition: transform .5s cubic-bezier(.2, 1.3, .4, 1);
+}
+.badge .star {
+  width: 16px; height: 16px; flex: none;
+  fill: none; stroke: var(--hc, #E07A5F); stroke-width: 2.6; stroke-linecap: round;
+  /* turned in steps by companion.js on its 10 Hz tick: a CSS spin cost ~8 % of a core (measured);
+     its own layer, so turning it doesn't repaint the glowing badge */
+  will-change: transform;
+}
+.badge .slot { display: inline-grid; overflow: hidden; height: 1.45em; line-height: 1.45em; transition: width .35s ease; }
+.badge .w { grid-area: 1 / 1; white-space: nowrap; transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .45s, filter .45s; }
+.badge .w.enter { transform: translateY(100%); opacity: 0; filter: blur(6px); }
+.badge .w.leave { transform: translateY(-100%); opacity: 0; filter: blur(6px); }
+.badge .pct { font: 500 12px 'JetBrains Mono', monospace; opacity: .8; font-variant-numeric: tabular-nums; }
+.badge.hot .slot { animation: haze .16s steps(2) infinite alternate; } /* heat shimmer above 80 % */
+@keyframes haze { from { transform: skewX(-2deg) translateY(.4px); } to { transform: skewX(2deg) translateY(-.4px); } }
+
+.emote {
+  position: absolute; left: 0; top: 0;
+  image-rendering: pixelated;
+  /* white sticker border like the pack, plus a soft drop shadow */
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff)
+    drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 4px rgba(0, 0, 0, .35));
+  transition: opacity .25s, transform .5s cubic-bezier(.2, 1.3, .4, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge.hot .slot { animation: none; }
+  .badge, .badge .w, .emote { transition: none; }
+}

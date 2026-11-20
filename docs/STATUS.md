@@ -5,11 +5,36 @@
 | 0 Hardware report | ✅ done 2026-11-20 | `docs/HARDWARE.md`. Read-only, nothing installed or written to hardware. |
 | 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
 | 2 Electron overlay | ✅ done 2026-11-20, hand-checked | Tag `phase-2-working`. |
-| 3 Badge + moods + dock (fake data) | ⏳ next: plan needs Saud's OK | |
+| 3 Badge + moods + dock (fake data) | 🔨 3a ✅ (moods, face, badge, sticker) · 3b dock next · 3c moves | |
 | 4 Bridge + RGB | — | Tier 1 OpenRGB SDK is viable (see HARDWARE.md) |
 | 5 Telemetry HUD | — | Never `lspci` in the poll loop (it wakes the dGPU) |
 | 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
+
+## Phase 3a: moods, face, badge, emote sticker (2026-11-20)
+
+- `ui/mood/mood.js` (pure, 6 node tests): pressure → mood at the spec thresholds, verb pools and
+  swap interval (4 s → 2.5 s), heat colour #E07A5F → #FF5500 → #FF1E00 / masti #FF0055 ↔ #FF758F,
+  pose + face per mood, emote pools (8–15 s rotation), the preview's auto-demo loop, and a
+  simulator with auto-masti after 25 s idle (8 s).
+- Face: 15 decal parts in `octo.json` (eyes open/closed/sleepy/happy/angry/wink/heart/dead, mouths
+  smile/o/grit/smirk, extras blush/tears/sweat/anger). Blush `#EF9B81` and heart `#F8363B` sampled
+  from the sheet. Mood pose (bob, lean, tilt, bounce, shake) crossfades over 0.4 s (tested: no pop).
+- `ui/companion.js`: the approved badge ported from `ui-preview.html` (star spinner, slot slide +
+  blur fade, heat colours + glow, shimmer above 80 %, flips side near screen edges) and the emote
+  sticker (clean sprite, white sticker border) above the octo's head. Local fonts (Sora,
+  JetBrains Mono via Fontsource), nothing loaded from the internet.
+- Overlay window 640×360 (room for the badge). Until the dock exists, the auto-demo drives it.
+- Checked: each mood screenshotted (idle/light/deep/overdrive/masti), fonts loaded, no page errors,
+  on the real desktop (cropped capture), dGPU suspended, 18 node tests pass.
+- **CPU (one core, Electron total, mood held steady):** idle 24.6 %, light 28 %, deep 26 %,
+  overdrive 31 %, masti 32 %; the octo alone at 640×360 is ~17 %. Found and fixed on the way
+  (first build was 34–42 %): a CSS-animated spinner and colour transitions kept the compositor at
+  60 FPS, and the badge re-anchored on every idle bob. Now the star turns in steps and all badge
+  updates ride on the octo's own frames. Later lever: a narrower 3D canvas inside the window (~−3 %).
+- Changed from the spec: **no React / Framer Motion.** The approved preview's badge is ~40 lines of
+  plain DOM + CSS; React would add ~200 kB and per-frame work for no visible gain. Revisit if the
+  dock gets complex. Idle emote pool uses 36_sprout instead of "30 sunny" (30 is a raincoat).
 
 ## Phase 2: what was built and checked
 

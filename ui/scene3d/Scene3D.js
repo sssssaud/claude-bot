@@ -32,7 +32,7 @@ const OUTLINE_SHADER = {
     }`,
 };
 
-export function createScene3D(canvas, model, { outline = true, speed = 1, orbit = true, onRect = null } = {}) {
+export function createScene3D(canvas, model, { outline = true, speed = 1, orbit = true, onRect = null, onFrame = null } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power' });
   renderer.setClearColor(0x000000, 0);
   renderer.info.autoReset = false; // two passes per frame: count draw calls per frame, not per pass
@@ -100,6 +100,16 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
   }
   const legs = Object.keys(groups).filter(n => n.startsWith('leg')).map(n => groups[n]);
 
+  // Face: one eyes part, one mouth (or none), any extras. A blink closes whatever eyes are shown.
+  const faceParts = Object.keys(groups).filter(n => /^(eyes|mouth|extra)\./.test(n)).map(n => [n, ...n.split('.')]);
+  let face = { eyes: 'open', mouth: 'none', extras: [] };
+  function showFace(blinking) {
+    const eyes = blinking && !['sleepy', 'closed', 'dead'].includes(face.eyes) ? 'closed' : face.eyes;
+    for (const [n, kind, name] of faceParts) {
+      groups[n].visible = kind === 'eyes' ? name === eyes : kind === 'mouth' ? name === face.mouth : face.extras.includes(name);
+    }
+  }
+
   const shadow = blobShadow(body.maxX - body.minX + 4, body.maxZ - body.minZ + 6);
   scene.add(shadow);
 
@@ -152,8 +162,7 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
     root.position.set(p.x, p.y, 0);
     squash.scale.set(...squashScale(p.squash));
     spin.rotation.set(p.rotX, p.rotY, p.rotZ);
-    groups.eyesOpen.visible = p.eyes === 'open';
-    groups.eyesClosed.visible = p.eyes === 'closed';
+    showFace(p.eyes === 'closed');
     legs.forEach((g, i) => (g.rotation.z = 0.12 * p.legAmp * Math.sin(TAU * 1.2 * now + i * 0.8)));
     const s = 1 / (1 + Math.max(0, p.y) * 0.1);
     shadow.position.x = p.x;
@@ -167,6 +176,7 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
     renderer.setRenderTarget(null);
     renderer.render(postScene, postCam);
     if (onRect) reportRect();
+    onFrame?.();
     frames++;
     if (now - fpsFrom >= 1) {
       fps = frames / (now - fpsFrom);
@@ -210,6 +220,15 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
 
   return {
     play: name => player.play(name, clock()),
+    setPose: pose => player.setMood(pose, clock()),
+    setFace: f => {
+      const has = (kind, name) => groups[`${kind}.${name}`];
+      face = {
+        eyes: has('eyes', f.eyes) ? f.eyes : 'open',
+        mouth: has('mouth', f.mouth) ? f.mouth : 'none',
+        extras: (f.extras ?? []).filter(x => has('extra', x)),
+      };
+    },
     setOutline: on => (post.uniforms.on.value = on),
     stats: () => ({ fps: Math.round(fps), voxels: all.length, draws: renderer.info.render.calls }),
   };
