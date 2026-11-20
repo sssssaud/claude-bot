@@ -25,6 +25,7 @@
     "eyes.angry": { "at": [2, 6, 3.6], "thick": 0.2, "hidden": true, "slices": [["e......e", ".ee..ee."]] },
     "eyes.wink": { "at": [3, 6, 3.6], "thick": 0.2, "hidden": true, "slices": [["e....e.", "e...e.e"]] },
     "eyes.heart": { "at": [2, 7, 3.6], "thick": 0.2, "hidden": true, "slices": [["h.h..h.h", "hhh..hhh", ".h....h."]] },
+    "eyes.dizzy": { "at": [2, 7, 3.6], "thick": 0.2, "hidden": true, "slices": [["eee..eee", "e.e..e.e", "eee..eee"]] },
     "eyes.dead": { "at": [2, 7, 3.6], "thick": 0.2, "hidden": true, "slices": [["e.e..e.e", ".e....e.", "e.e..e.e"]] },
     "mouth.smile": { "at": [4, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["e..e", ".ee."]] },
     "mouth.o": { "at": [5, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["ee", "ee"]] },

@@ -136,9 +136,10 @@ const sim = createSimulator();
 const clock = () => performance.now() / 1000;
 let temps = { cpu: 55, gpu: 50 }; // fake °C from the dock's telemetry override
 let picked = null; // { emote, until }: an emote chosen in the dock
+let look = null; // { fx, fy }: where the terminal is, as fractions of the screen (fake now; the bridge finds it in Phase 4)
 setInterval(() => {
   const now = clock();
-  const state = { ...sim.state(now), temps, emote: picked && now < picked.until ? picked.emote : null };
+  const state = { ...sim.state(now), temps, look, emote: picked && now < picked.until ? picked.emote : null };
   win?.webContents.send('sim:state', state);
   if (dock?.isVisible()) dock.webContents.send('sim:state', state);
 }, 100);
@@ -176,6 +177,9 @@ ipcMain.on('sim:temps', (e, t) => {
 });
 ipcMain.on('sim:emote', (e, name) => {
   if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) picked = { emote: name, until: clock() + 6 };
+});
+ipcMain.on('sim:look', (e, l) => {
+  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) look = l && { fx: l.fx, fy: l.fy };
 });
 ipcMain.on('octo:play', (e, name) => {
   if (fromDock(e) && MOVE_NAMES.includes(name)) win?.webContents.send('octo:play', name);

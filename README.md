@@ -6,10 +6,12 @@ tiny CPU/GPU stats and syncs the Dell G15's 4-zone keyboard RGB to its mood.
 
 ![The voxel octo: front, back and three-quarter view](docs/img/octo-phase1.png)
 
-**Status:** Phase 3b done. The octo floats on the KDE desktop (transparent, always on top,
-click-through except on the octo and its badge, draggable) with 5 moods, face expressions, a
-heat-coloured thinking-verb badge and rotating emote stickers. Click the badge to open the
-simulator dock that drives it all (pressure, moods, moves, emotes, fake temperatures, keyboard strip). Full plan: [`PROMPT.md`](PROMPT.md);
+**Status:** Phase 3 of 7 done. The octo floats on the KDE desktop (transparent, always on top,
+click-through except on the octo and its badge, draggable) with 5 moods, face expressions, 13
+moves, pixel particles, a heat-coloured thinking-verb badge and rotating emote stickers, and it
+looks toward your terminal. Click the badge to open the simulator dock that drives it all
+(pressure, moods, moves, emotes, look target, fake temperatures, keyboard strip). Next: the
+Python bridge with real keyboard RGB (Phase 4). Full plan: [`PROMPT.md`](PROMPT.md);
 progress: [`docs/STATUS.md`](docs/STATUS.md); hardware notes: [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
 ## Setup (Nobara / Fedora)

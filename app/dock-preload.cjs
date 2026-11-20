@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('dockBridge', {
   setDemo: on => ipcRenderer.send('sim:demo', on),
   setTemps: temps => ipcRenderer.send('sim:temps', temps),
   showEmote: name => ipcRenderer.send('sim:emote', name),
+  setLook: look => ipcRenderer.send('sim:look', look),
   play: name => ipcRenderer.send('octo:play', name),
   moves: () => ipcRenderer.invoke('dock:moves'),
   onState: fn => ipcRenderer.on('sim:state', (_e, state) => fn(state)),

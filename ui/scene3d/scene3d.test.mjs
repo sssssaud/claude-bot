@@ -38,6 +38,8 @@ test('every move starts and ends at rest', () => {
       const p = { ...REST, ...move.pose(t, 1) };
       assert.ok(near(p.y, 0), `${name} y at t=${t}`);
       assert.ok(near(p.squash, 1), `${name} squash at t=${t}`);
+      assert.ok(near(p.armR, 0) && near(p.legGait, 0), `${name} arm/gait at t=${t}`);
+      assert.ok(!p.eyes && !p.zzz, `${name} face back to normal at t=${t}`);
       for (const r of ['rotX', 'rotY', 'rotZ']) assert.ok(sameAngle(p[r], 0), `${name} ${r} at t=${t}`);
       if (t === 0 || !move.keepX) assert.ok(near(p.x, 0), `${name} x at t=${t}`);
     }
@@ -99,4 +101,22 @@ test('player: rolls alternate so the octo stays on stage, idle interrupts, click
   let moves = 0;
   for (let t = now + 5; t < now + 20; t += 0.05) if (player.pose(t).y > 2) { moves++; t += 0.9; }
   assert.equal(moves, 3, 'only three queued jumps play');
+});
+
+test('gaze eases toward the target (no snap) and the drag flail ends with a bounce', () => {
+  const player = createPlayer(() => 0.5);
+  player.pose(0);
+  player.setLook(0.4, 0.8, 0);
+  const first = player.pose(1 / 60);
+  assert.ok(first.rotY > 0 && first.rotY < 0.05, `first frame only starts turning: ${first.rotY}`);
+  let p;
+  for (let t = 2 / 60; t < 3; t += 1 / 60) p = player.pose(t);
+  assert.ok(Math.abs(p.rotY - 0.4) < 0.01 && Math.abs(p.eyeX - 0.8) < 0.02, 'reached the target');
+
+  player.setDragging(true, 3);
+  assert.ok(player.pose(3.1).legAmp > 3, 'legs flail while dragged');
+  player.setDragging(false, 3.2);
+  const squashes = [];
+  for (let t = 3.2; t < 3.8; t += 1 / 60) squashes.push(player.pose(t).squash);
+  assert.ok(Math.min(...squashes) < 0.85, 'drop squash bounce');
 });

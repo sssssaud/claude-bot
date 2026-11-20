@@ -36,11 +36,18 @@
       <p class="note">Click one to show it on the octo for 6 s.</p>
     </section>
 
+    <section class="card" aria-labelledby="h-look">
+      <h2 id="h-look">Look target (terminal)</h2>
+      <div class="screenmap" id="screenmap" role="button" tabindex="0" aria-label="Click to set where the terminal is on the screen"><span class="dot" id="dot" hidden></span></div>
+      <div class="row"><span class="note" id="looknote">Not set: the octo looks ahead.</span><button id="lookclear">Clear</button></div>
+      <p class="note">Fake for now: click where your terminal is. In Phase 4 the bridge finds the real Claude Code terminal through KWin.</p>
+    </section>
+
     <section class="card" aria-labelledby="h-temps">
       <h2 id="h-temps">Telemetry override</h2>
       <label class="slider" for="cpu">CPU <input id="cpu" type="range" min="30" max="100" value="55"><b id="cpuv">55 °C</b></label>
       <label class="slider" for="gpu">GPU <input id="gpu" type="range" min="30" max="95" value="50"><b id="gpuv">50 °C</b></label>
-      <p class="note">CPU over 90 °C: sick. GPU over 83 °C: sweat (melt comes in 3c). Both under 45 °C while idle: snowy.</p>
+      <p class="note">CPU over 90 °C: sick. GPU over 83 °C: sweat and melt. Both under 45 °C while idle: snowy.</p>
     </section>
 
     <section class="card" aria-labelledby="h-kb">

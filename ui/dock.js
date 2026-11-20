@@ -57,6 +57,26 @@ $('emotes').addEventListener('click', e => {
   if (b) bridge.showEmote(b.dataset.emote);
 });
 
+// ---- look target: where the terminal is (fake until the bridge finds it) ----
+const map = $('screenmap');
+map.style.setProperty('--ratio', `${screen.width} / ${screen.height}`);
+function setLook(fx, fy) {
+  bridge.setLook({ fx, fy });
+  Object.assign($('dot').style, { left: `${fx * 100}%`, top: `${fy * 100}%` });
+  $('dot').hidden = false;
+  $('looknote').textContent = `Terminal at ${Math.round(fx * 100)} %, ${Math.round(fy * 100)} % of the screen`;
+}
+map.addEventListener('click', e => {
+  const r = map.getBoundingClientRect();
+  setLook(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)));
+});
+map.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLook(0.75, 0.4); } });
+$('lookclear').addEventListener('click', () => {
+  bridge.setLook(null);
+  $('dot').hidden = true;
+  $('looknote').textContent = 'Not set: the octo looks ahead.';
+});
+
 // ---- telemetry override ----
 for (const id of ['cpu', 'gpu']) {
   $(id).addEventListener('input', () => {

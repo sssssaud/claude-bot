@@ -58,6 +58,11 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   let faceTimer = 0;
   let faceKey = '';
   let lastRegion = '';
+  let local = null; // { emote, until }: a sticker the companion itself chose (hello, healing)
+  let started = false;
+  let fidgetAt = 0;
+  let loopAt = 0; // next dance / melt / sleep while that condition lasts
+  let particleKey = '';
 
   function setVerb(word) { // vertical slot slide + blur fade (preview)
     const old = slot.querySelector('.cur');
@@ -147,21 +152,38 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     state = next;
   }
 
-  function apply({ p, masti, temps, emote: picked }, now) {
+  function apply({ p, masti, temps, look, sleepy, emote: picked }, now) {
     const m = moodOf(p, masti);
     const moodChanged = m !== mood;
+    let faceDelay = 200; // eyes swap mid-crossfade
+    if (!started) { // app start: wave hello (spec §3.6)
+      started = true;
+      scene.play('wave');
+      local = { emote: '01_hello', until: now + 4 };
+      fidgetAt = now + 20 + 20 * Math.random();
+    } else if (moodChanged && mood === 'overdrive' && m !== 'masti') { // cooling down after overdrive
+      scene.play('tumble');
+      local = { emote: '22_healing', until: now + 5 };
+    } else if (moodChanged) {
+      scene.play('peekTurn'); // the face swaps while it looks away (spec §3.5)
+      faceDelay = 450;
+    }
     if (moodChanged) {
       mood = m;
       scene.setPose(POSE[m]);
       emoteAt = 0;
+      loopAt = now + 2;
     }
+    behave(m, temps, sleepy, now);
+    aim(look);
+    setParticles(m, p, temps);
     const hot = gpuHot(temps) ? ['sweat'] : []; // GPU over 83 °C: sweat (melt arrives in 3c)
     const key = m + hot.join();
     if (key !== faceKey) {
       faceKey = key;
       const face = { ...FACE[m], extras: [...new Set([...FACE[m].extras, ...hot])] };
       clearTimeout(faceTimer);
-      faceTimer = setTimeout(() => scene.setFace(face), moodChanged ? 200 : 0); // eyes swap mid-crossfade
+      faceTimer = setTimeout(() => scene.setFace(face), moodChanged ? faceDelay : 0);
     }
     const vp = verbPool(p, masti);
     if (vp !== pool || now >= verbAt) {
@@ -169,8 +191,9 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       setVerb(nextVerb(vp, verb));
       verbAt = now + verbInterval(p);
     }
-    // sticker: an emote picked in the dock, else a temperature emote, else the mood's pool
-    const forced = picked ?? tempEmote(temps, m);
+    // sticker: picked in the dock, else chosen here (hello, healing), else a temperature emote, else the pool
+    if (local && now >= local.until) local = null;
+    const forced = picked ?? local?.emote ?? tempEmote(temps, m);
     if (forced) {
       if (forced !== emoteName) setEmote(forced);
       emoteAt = 0; // back to the pool as soon as it ends
@@ -193,6 +216,44 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     badge.classList.toggle('hot', p > 80 && m !== 'masti');
     const label = `${Math.round(p)}%`;
     if (pct.textContent !== label) pct.textContent = label;
+  }
+
+  // Recurring moves while a condition lasts, plus random idle fidgets (spec §3.4).
+  function behave(m, temps, sleepy, now) {
+    const loop = sleepy ? 'sleep' : gpuHot(temps) ? 'melt' : m === 'masti' ? 'dance' : null;
+    if (loop && now >= loopAt) {
+      scene.play(loop);
+      loopAt = now + { sleep: 6.2, melt: 9, dance: 6 }[loop];
+    }
+    if (!loop && m === 'idle' && now >= fidgetAt) {
+      scene.play(['peekTurn', 'roll', 'walk', 'peekTurn'][Math.floor(Math.random() * 4)]);
+      fidgetAt = now + 20 + 20 * Math.random();
+    }
+  }
+
+  // Look at a screen point ({ fx, fy } of the screen; Saud: always at the terminal): body turns up
+  // to ±25°, eyes shift up to ~1 voxel. No target: look ahead.
+  function aim(look) {
+    if (!look || !octo) return scene.setLook(0, 0, 0);
+    const dx = look.fx * screen.width - (window.screenX + octo.x + octo.width / 2);
+    const dy = look.fy * screen.height - (window.screenY + octo.y + octo.height / 2);
+    const nx = Math.max(-1, Math.min(1, dx / 500));
+    const ny = Math.max(-1, Math.min(1, dy / 400));
+    scene.setLook(0.44 * nx, 0.9 * nx, -0.6 * ny);
+  }
+
+  // Particles per mood (spec §3.5) and embers above 80 % (spec §4).
+  function setParticles(m, p, temps) {
+    const want = {
+      zzz: m === 'idle', glyphs: m === 'light', sparks: m === 'deep',
+      sweat: m === 'overdrive' || gpuHot(temps), steam: m === 'overdrive', aura: m === 'overdrive',
+      hearts: m === 'masti', sparkles: m === 'masti', embers: p > 80 && m !== 'masti',
+    };
+    const key = JSON.stringify(want);
+    if (key !== particleKey) {
+      particleKey = key;
+      scene.setParticles(want);
+    }
   }
 
   return { update, scene, mood: () => mood };

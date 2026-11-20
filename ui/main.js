@@ -2,6 +2,7 @@
 import model from '../voxels/octo.json';
 import { createCompanion } from './companion.js';
 import { createSimulator, NAMES, moodOf } from './mood/mood.js';
+import { MOVES } from './scene3d/moves.js';
 
 // ?speed=0.1 plays every move in slow motion, to check timing frame by frame
 const speed = Number(new URLSearchParams(location.search).get('speed'));
@@ -13,8 +14,11 @@ const companion = createCompanion({
 });
 const octo = companion.scene;
 
-for (const button of document.querySelectorAll('[data-move]')) {
-  button.addEventListener('click', () => octo.play(button.dataset.move));
+for (const name of ['idle', 'blink', ...Object.keys(MOVES)]) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.addEventListener('click', () => octo.play(name));
+  document.querySelector('#moves').append(b);
 }
 document.querySelector('#outline').addEventListener('change', e => octo.setOutline(e.target.checked));
 

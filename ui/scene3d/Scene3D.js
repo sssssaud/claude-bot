@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { parseModel, bounds, exposedFaces } from './voxels.js';
 import { createPlayer, squashScale, frameGate } from './moves.js';
+import { createParticles } from './particles.js';
 
 const TAU = Math.PI * 2;
 const TILT = THREE.MathUtils.degToRad(12); // slight top-down view: front reads like the sprite
@@ -103,8 +104,9 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
   // Face: one eyes part, one mouth (or none), any extras. A blink closes whatever eyes are shown.
   const faceParts = Object.keys(groups).filter(n => /^(eyes|mouth|extra)\./.test(n)).map(n => [n, ...n.split('.')]);
   let face = { eyes: 'open', mouth: 'none', extras: [] };
-  function showFace(blinking) {
-    const eyes = blinking && !['sleepy', 'closed', 'dead'].includes(face.eyes) ? 'closed' : face.eyes;
+  const eyeGroups = faceParts.filter(([, kind]) => kind === 'eyes').map(([n]) => [groups[n], groups[n].position.clone()]);
+  function showFace(p) { // a move can override the eyes (dizzy, sleepy); a blink closes open eyes
+    const eyes = p.eyes ?? (p.blink && !['sleepy', 'closed', 'dead', 'dizzy'].includes(face.eyes) ? 'closed' : face.eyes);
     for (const [n, kind, name] of faceParts) {
       groups[n].visible = kind === 'eyes' ? name === eyes : kind === 'mouth' ? name === face.mouth : face.extras.includes(name);
     }
@@ -112,6 +114,10 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
 
   const shadow = blobShadow(body.maxX - body.minX + 4, body.maxZ - body.minZ + 6);
   scene.add(shadow);
+  const flatScene = new THREE.Scene(); // drawn after the outline pass: no sticker border
+  const particles = createParticles(scene, flatScene);
+  let wantParticles = {};
+  let lastFrame = null;
 
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
   const target = new THREE.Vector3(0, spin.position.y + 3, 0);
@@ -162,8 +168,16 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
     root.position.set(p.x, p.y, 0);
     squash.scale.set(...squashScale(p.squash));
     spin.rotation.set(p.rotX, p.rotY, p.rotZ);
-    showFace(p.eyes === 'closed');
-    legs.forEach((g, i) => (g.rotation.z = 0.12 * p.legAmp * Math.sin(TAU * 1.2 * now + i * 0.8)));
+    showFace(p);
+    for (const [g, base] of eyeGroups) g.position.set(base.x + p.eyeX, base.y + p.eyeY, base.z); // gaze
+    if (groups.armR) groups.armR.rotation.z = p.armR; // wave
+    legs.forEach((g, i) => {
+      g.rotation.z = 0.12 * p.legAmp * Math.sin(TAU * 1.2 * now + i * 0.8); // sway / flail
+      g.rotation.x = 0.55 * p.legGait * Math.sin(TAU * 4 * now + i * Math.PI / 2); // walking wave gait
+    });
+    const dt = lastFrame === null ? 0 : Math.min(0.1, now - lastFrame);
+    lastFrame = now;
+    particles.update(dt, now, { x: p.x, y: p.y + spin.position.y }, { ...wantParticles, zzz: wantParticles.zzz || p.zzz });
     const s = 1 / (1 + Math.max(0, p.y) * 0.1);
     shadow.position.x = p.x;
     shadow.scale.set(s, s, 1);
@@ -175,6 +189,9 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
     renderer.render(scene, cam);
     renderer.setRenderTarget(null);
     renderer.render(postScene, postCam);
+    renderer.autoClear = false;
+    renderer.render(flatScene, cam);
+    renderer.autoClear = true;
     if (onRect) reportRect();
     onFrame?.();
     frames++;
@@ -220,6 +237,9 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
 
   return {
     play: name => player.play(name, clock()),
+    setLook: (yaw, ex, ey) => player.setLook(yaw, ex, ey),
+    setDragging: on => player.setDragging(on, clock()),
+    setParticles: want => { wantParticles = want; },
     setPose: pose => player.setMood(pose, clock()),
     setFace: f => {
       const has = (kind, name) => groups[`${kind}.${name}`];

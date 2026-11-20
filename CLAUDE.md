@@ -53,7 +53,7 @@ Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest 
 
 ## Current status
 - Done: spec, emote pack, UI look approved. Phase 0 hardware report, Phase 1 clean sprites + 3D octo, Phase 2 Electron overlay (all 2026-11-20).
-- Phase 3 (approved 2026-11-20): 3a moods/face/badge ✅; 3b simulator dock ✅ (state lives in main.js, badge opens the dock); next 3c rest of the moves + particles + eyes looking at a target point.
+- Phase 3 ✅ (2026-11-20): moods/face/badge, simulator dock (state lives in main.js, badge opens it), 13 moves, particles, gaze at a look target. Next: Phase 4 (Python bridge + RGB + real terminal position via KWin), plan needs Saud's OK.
 - Stack note: no React (approved badge is plain DOM; see docs/STATUS.md). Badge DOM work runs inside Scene3D's frame (onFrame) to keep CPU down.
 - Blockers: none. Open: AW-ELC flash-write question (Phase 4).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.

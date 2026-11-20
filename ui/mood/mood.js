@@ -86,9 +86,11 @@ export function demoAt(t) {
   return { p: from, masti: false }; // unreachable: u < DEMO_CYCLE
 }
 
-// ---- simulator state: pressure source, masti toggle, auto-masti after 25 s idle (spec §3.5) ----
+// ---- simulator state (spec §3.5): pressure source, masti toggle; when idle, one auto-masti burst
+// after 25 s, then sleep after 5 quiet minutes ----
 export const AUTO_MASTI_AFTER = 25; // s of idle
 export const AUTO_MASTI_FOR = 8; // s
+export const SLEEP_AFTER = 300; // s of quiet
 export function createSimulator() {
   let p = 8;
   let masti = false; // masti asked for (button / hotkey)
@@ -96,16 +98,20 @@ export function createSimulator() {
   let demoFrom = 0;
   let idleSince = 0;
   let autoUntil = -1; // auto-masti running until this time
+  let autoDone = false; // one burst per quiet stretch
+  const reset = now => { autoUntil = -1; autoDone = false; idleSince = now; };
   return {
-    setPressure(v, now) { p = Math.min(100, Math.max(0, v)); demo = false; masti = false; autoUntil = -1; idleSince = now; },
-    toggleMasti(now) { masti = !masti; demo = false; autoUntil = -1; idleSince = now; },
-    setDemo(on, now) { demo = on; demoFrom = now; masti = false; autoUntil = -1; idleSince = now; },
+    setPressure(v, now) { p = Math.min(100, Math.max(0, v)); demo = false; masti = false; reset(now); },
+    toggleMasti(now) { masti = !masti; demo = false; reset(now); },
+    setDemo(on, now) { demo = on; demoFrom = now; masti = false; reset(now); },
     state(now) {
-      if (demo) return { ...demoAt(now - demoFrom), demo: true };
-      if (autoUntil >= 0 && now >= autoUntil) { autoUntil = -1; idleSince = now; }
-      if (!masti && autoUntil < 0 && moodOf(p) === 'idle' && now - idleSince >= AUTO_MASTI_AFTER) autoUntil = now + AUTO_MASTI_FOR;
-      if (moodOf(p) !== 'idle') idleSince = now;
-      return { p, masti: masti || autoUntil >= 0, demo: false };
+      if (demo) return { ...demoAt(now - demoFrom), demo: true, sleepy: false };
+      const idle = moodOf(p) === 'idle';
+      if (!idle) reset(now);
+      if (autoUntil >= 0 && now >= autoUntil) { autoUntil = -1; autoDone = true; }
+      if (idle && !masti && !autoDone && autoUntil < 0 && now - idleSince >= AUTO_MASTI_AFTER) autoUntil = now + AUTO_MASTI_FOR;
+      const sleepy = idle && !masti && autoUntil < 0 && now - idleSince >= SLEEP_AFTER;
+      return { p, masti: masti || autoUntil >= 0, demo: false, sleepy };
     },
   };
 }

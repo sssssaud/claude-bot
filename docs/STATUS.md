@@ -5,11 +5,34 @@
 | 0 Hardware report | ✅ done 2026-11-20 | `docs/HARDWARE.md`. Read-only, nothing installed or written to hardware. |
 | 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
 | 2 Electron overlay | ✅ done 2026-11-20, hand-checked | Tag `phase-2-working`. |
-| 3 Badge + moods + dock (fake data) | 🔨 3a ✅ moods/face/badge · 3b ✅ simulator dock · 3c moves next | |
-| 4 Bridge + RGB | — | Tier 1 OpenRGB SDK is viable (see HARDWARE.md) |
+| 3 Badge + moods + dock (fake data) | ✅ done 2026-11-20 (3a moods/face/badge · 3b dock · 3c moves, particles, gaze) | Tag `phase-3-working`. |
+| 4 Bridge + RGB | ⏳ next: plan needs Saud's OK | Tier 1 OpenRGB SDK is viable (see HARDWARE.md); also the real terminal position for the gaze (KWin script) |
 | 5 Telemetry HUD | — | Never `lspci` in the poll loop (it wakes the dGPU) |
 | 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
+
+## Phase 3c: the rest of the moves, particles, gaze (2026-11-20)
+
+- `moves.js`: flipJump, peekTurn, tumble (ends with dizzy `@ @` eyes), walk (8-leg wave gait,
+  waddle), shake, melt (squash to 0.6 and reform), sleep (sinks, `– –`, zZz), dance, wave (arm
+  nub), bounce (drop landing), plus drag flail and an eased gaze (body ±25°, eyes up to ~1 voxel).
+  13 moves in total; every one starts and ends at rest (tested), 24 node tests.
+- `particles.js`: pixel-art sprites in the same WebGL pass (no extra compositor layers) with the
+  sticker outline: zZz, sparks, sweat drops, steam, hearts, sparkles, embers, and the crimson aura
+  ring. The `{ }` / `</>` glyphs are drawn after the outline pass (as anti-aliased text, then even
+  as 1-px pixel glyphs, the white border swamped them into blobs; seen and fixed).
+- Behaviour (companion): wave + `hello` sticker on start; peekTurn on a mood change with the face
+  swapped mid-turn; tumble + `healing` sticker when overdrive cools down; dance every 6 s in masti;
+  melt every 9 s while the GPU is over 83 °C; sleep after 5 quiet minutes; random idle fidgets
+  (peekTurn, roll, walk) every 20–40 s. The simulator now gives one auto-masti burst per quiet
+  stretch (it used to repeat every 33 s, so sleep could never happen).
+- **Saud's gaze request:** the dock has a look-target map (click where the terminal is); the octo
+  turns and looks there. Checked on the real desktop: target far left vs far right visibly turns
+  the body and shifts the eyes. The real terminal position comes from the bridge (Phase 4).
+- Checked: slow-motion frame strips of all new moves, particles per mood, gaze on the real desktop,
+  dock drag-and-drop with no page errors (the drop deltas weren't exact because someone was moving
+  the test octo at the same time; the drag path itself is unchanged from Phase 2's exact test),
+  idle CPU 26.9 % of one core with zZz particles (unchanged), dGPU asleep, no GPU crashes.
 
 ## Phase 3b: simulator dock (2026-11-20)
 
@@ -120,7 +143,7 @@
    any screen edge while the empty part of the window hangs off-screen.
 
 ## Saud's additions (2026-11-20)
-1. **Eyes always look at the terminal** (replaces the spec's cursor `lookAt`). Phase 3 builds
+1. **Eyes always look at the terminal** (replaces the spec's cursor `lookAt`). ✅ Phase 3c:
    "look at a screen point" (eyes shift, body yaws up to ±25°) driven by a fake terminal position
    from the dock. Phase 4: the bridge finds the real terminal. Wayland apps can't see other windows,
    so a small KWin script reports the window of the terminal that runs Claude Code (its process →

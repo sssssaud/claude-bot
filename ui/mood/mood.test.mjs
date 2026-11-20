@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -66,4 +66,16 @@ test('simulator: auto-masti after 25 s idle, for 8 s; pressure or a button cance
   assert.equal(sim.state(201).masti, true);
   sim.toggleMasti(202);
   assert.equal(sim.state(203).masti, false);
+});
+
+test('simulator: one auto-masti per quiet stretch, then sleepy after 5 quiet minutes', () => {
+  const sim = createSimulator();
+  sim.setPressure(5, 0);
+  assert.equal(sim.state(AUTO_MASTI_AFTER + 1).masti, true);
+  // the burst began at the first check after 25 s (t = 26) and lasts 8 s
+  for (let t = AUTO_MASTI_AFTER + 1 + AUTO_MASTI_FOR; t < SLEEP_AFTER - 1; t += 1) assert.equal(sim.state(t).masti, false, `no second burst at ${t}`);
+  assert.equal(sim.state(SLEEP_AFTER - 1).sleepy, false);
+  assert.equal(sim.state(SLEEP_AFTER).sleepy, true);
+  sim.setPressure(40, SLEEP_AFTER + 1);
+  assert.equal(sim.state(SLEEP_AFTER + 2).sleepy, false, 'work wakes it');
 });

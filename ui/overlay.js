@@ -27,12 +27,16 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (!press) return;
   if (!press.dragging && Math.hypot(e.screenX - press.sx, e.screenY - press.sy) < DRAG_PX) return;
+  if (!press.dragging) octo.setDragging(true); // legs flail while dragged
   press.dragging = true;
   bridge.moveTo(Math.round(e.screenX - press.cx), Math.round(e.screenY - press.cy));
 });
 const release = e => {
   if (!press) return;
-  if (press.dragging) bridge.drop();
+  if (press.dragging) {
+    octo.setDragging(false); // squash bounce on drop
+    bridge.drop();
+  }
   else if (e.type === 'pointerup') octo.play('turnAround');
   press = null;
 };
