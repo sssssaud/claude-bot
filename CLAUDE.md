@@ -36,8 +36,9 @@ Folders other than `assets/` are created phase by phase, not all up front.
 ## Build / run commands
 Working now:
 - Setup: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && npm install`
+- `npm run app`: build + the desktop overlay (Electron, relaunches itself on XWayland; `CLAUDE_BOT_OZONE=wayland` = native)
 - `npm run dev:web`: 3D octo in a plain browser at http://127.0.0.1:5173 (`?speed=0.1` = slow motion)
-- `npm test`: node tests (model, face culling, moves, frame budget)
+- `npm test`: node tests (model, face culling, moves, frame budget, window placement)
 - `.venv/bin/python tools/test_clean_emotes.py`, then `.venv/bin/python tools/clean_emotes.py`
 Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest bridge/tests`.
 
@@ -50,7 +51,8 @@ Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest 
 - Never run anything that writes to the keyboard controller before Phase 4 is planned and approved.
 
 ## Current status
-- Done: spec, emote pack, UI look approved. Phase 0 hardware report (2026-11-20). Phase 1: clean sprites + 3D octo in the browser (2026-11-20).
-- Pending: Phase 2 (Electron transparent overlay on Nobara), plan needs Saud's OK.
-- Blockers: none. Open: AW-ELC flash-write question (Phase 4); real-iGPU FPS not measured yet (headless browser is software-rendered).
+- Done: spec, emote pack, UI look approved. Phase 0 hardware report, Phase 1 clean sprites + 3D octo, Phase 2 Electron overlay (all 2026-11-20).
+- Pending: Saud's real-mouse check of Phase 2; then Phase 3 (badge + moods + simulator dock), plan needs Saud's OK.
+- Blockers: none. Open: AW-ELC flash-write question (Phase 4).
+- Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - Save-file: `docs/STATUS.md`.

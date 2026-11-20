@@ -3,13 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:web": "vite ui --host 127.0.0.1",
-    "test": "node --test 'ui/**/*.test.mjs'"
+    "dev:web": "vite",
+    "test": "node --test 'ui/**/*.test.mjs' 'app/**/*.test.mjs'",
+    "build": "vite build",
+    "app": "vite build && electron ."
   },
   "dependencies": {
     "three": "^0.187.0"
   },
   "devDependencies": {
+    "electron": "^45.4.1",
     "vite": "^8.3.8"
-  }
+  },
+  "main": "app/main.js"
 }

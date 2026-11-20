@@ -3,13 +3,34 @@
 | Phase | State | Notes |
 |---|---|---|
 | 0 Hardware report | ✅ done 2026-11-20 | `docs/HARDWARE.md`. Read-only, nothing installed or written to hardware. |
-| 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | See below. Tag `phase-1-working`. |
-| 2 Electron overlay | ⏳ next: plan needs Saud's OK | |
-| 3 Badge + moods + dock (fake data) | — | |
+| 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
+| 2 Electron overlay | ✅ done 2026-11-20 (one hand check left, see below) | Tag `phase-2-working`. |
+| 3 Badge + moods + dock (fake data) | ⏳ next: plan needs Saud's OK | |
 | 4 Bridge + RGB | — | Tier 1 OpenRGB SDK is viable (see HARDWARE.md) |
 | 5 Telemetry HUD | — | Never `lspci` in the poll loop (it wakes the dGPU) |
 | 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
+
+## Phase 2: what was built and checked
+
+- `npm run app`: the octo floats on the desktop in a transparent, frameless, always-on-top window
+  (460×340, mostly empty and click-through). Click the octo = turnAround; press and drag = move it.
+- `app/main.js` relaunches itself with `--ozone-platform=x11`; `focusable: false` makes it an
+  unmanaged X11 overlay that KWin keeps above other windows and out of the taskbar/Alt-Tab.
+- Click-through: the window's X11 **input shape** is the octo's box (`app/xinput_shape.py`, stdlib
+  ctypes; falls back to `setShape()`). Scene3D reports the box, snapped to 8 px.
+- Position: saved as fractions of the work area + display id (`~/.config/claude-bot/position.json`);
+  on drop and on display add/remove/metrics change the **octo** (not the empty window) is clamped
+  into the nearest display. Maths in `app/placement.js`, 4 node tests.
+- Checked on this machine: X11 window, override-redirect, ARGB; transparent on the real desktop
+  (cropped screen capture); drawn over a file manager window; input shape = octo box; drag moved
+  the window by exactly the pointer delta; dragging far off-screen clamped the octo into the corner;
+  position saved and restored after a restart; WebGL on Intel; 61 FPS acting / 24 FPS idle;
+  idle CPU 13.7 % of one core; dGPU suspended throughout; no GPU crashes.
+- **Not yet checked by hand:** a real mouse. Drag and click were driven with DevTools input events, and
+  click-through was verified at the X11 level (input shape), not with a physical click. To check:
+  `npm run app`, hover/click next to the octo (the window below should get the click), click the
+  octo (it spins), drag it around (it follows, stays on screen, comes back there after a restart).
 
 ## Phase 1: what was built and checked
 
@@ -44,10 +65,17 @@
    outside-only border in any pose and is still a toggle.
 4. **Merged exposed-face meshes, not one InstancedMesh per material.** Full cubes z-fight along
    buried faces (lit lines flickered on the back), and parts must move on their own anyway.
+5. **Click-through by the window's input shape, not by polling the cursor.** Under XWayland an X11
+   app doesn't see the cursor while it is over native Wayland windows, so `getCursorScreenPoint()`
+   polling can't detect a hover. The compositor routes clicks by the input shape instead.
+6. **Relaunch with `--ozone-platform=x11` instead of `appendSwitch`** (too late; caused GPU crashes).
+7. **Position is clamped by the octo's box, not the window's**, so the octo can sit flush against
+   any screen edge while the empty part of the window hangs off-screen.
 
 ## Blockers / open questions
-- Real on-screen FPS on the iGPU not measured yet: open `npm run dev:web` in a normal browser
-  (the stats line shows it), or measure in Phase 2's Electron window.
+- Real-mouse check of Phase 2 (see above).
+- Screen-lock pause (spec 3.3) not done yet: Phase 7, together with the tray's Sleep.
+- `lookAt` (Phase 3) needs the cursor position, which XWayland only reports over X11 windows: expect it to work only near the octo.
 - Does the AW-ELC store each update in flash? (Phase 4, before any streaming)
 - Blush colour for the face: not sampled yet (the clean sprites lose the tiny cheeks). Phase 3 expressions.
 - Project path has a space in a parent folder (`Projects/claude bot/claude-bot`). Fine so far.

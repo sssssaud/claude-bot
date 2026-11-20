@@ -32,7 +32,7 @@ const OUTLINE_SHADER = {
     }`,
 };
 
-export function createScene3D(canvas, model, { outline = true, speed = 1 } = {}) {
+export function createScene3D(canvas, model, { outline = true, speed = 1, orbit = true, onRect = null } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power' });
   renderer.setClearColor(0x000000, 0);
   renderer.info.autoReset = false; // two passes per frame: count draw calls per frame, not per pass
@@ -106,12 +106,15 @@ export function createScene3D(canvas, model, { outline = true, speed = 1 } = {})
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
   const target = new THREE.Vector3(0, spin.position.y + 3, 0);
   cam.position.set(0, target.y + 80 * Math.sin(TILT), 80 * Math.cos(TILT));
-  const controls = new OrbitControls(cam, canvas);
-  controls.target.copy(target);
-  controls.update();
+  cam.lookAt(target);
   let dragging = false;
-  controls.addEventListener('start', () => (dragging = true));
-  controls.addEventListener('end', () => (dragging = false));
+  if (orbit) { // test page only: on the desktop, dragging moves the window instead
+    const controls = new OrbitControls(cam, canvas);
+    controls.target.copy(target);
+    controls.update();
+    controls.addEventListener('start', () => (dragging = true));
+    controls.addEventListener('end', () => (dragging = false));
+  }
 
   function resize() {
     const w = canvas.clientWidth;
@@ -163,6 +166,7 @@ export function createScene3D(canvas, model, { outline = true, speed = 1 } = {})
     renderer.render(scene, cam);
     renderer.setRenderTarget(null);
     renderer.render(postScene, postCam);
+    if (onRect) reportRect();
     frames++;
     if (now - fpsFrom >= 1) {
       fps = frames / (now - fpsFrom);
@@ -170,6 +174,36 @@ export function createScene3D(canvas, model, { outline = true, speed = 1 } = {})
       fpsFrom = now;
     }
   }
+  // The octo's on-screen box in CSS px (body, legs, outline, shadow), for the window's click
+  // region. Padded by the outline plus a few px so one frame of lag never clips a fast jump.
+  const box = new THREE.Box3();
+  const shadowBox = new THREE.Box3();
+  const corner = new THREE.Vector3();
+  let lastRect = '';
+  function reportRect() {
+    box.setFromObject(root).union(shadowBox.setFromObject(shadow));
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(cam);
+      x0 = Math.min(x0, corner.x); x1 = Math.max(x1, corner.x);
+      y0 = Math.min(y0, corner.y); y1 = Math.max(y1, corner.y);
+    }
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const pad = (OUTLINE * h) / VIEW_H + 6;
+    const snap = 8; // grow outward to an 8 px grid, so the idle bob doesn't resend the box all the time
+    const left = Math.max(0, Math.floor((((x0 + 1) / 2) * w - pad) / snap) * snap);
+    const top = Math.max(0, Math.floor((((1 - y1) / 2) * h - pad) / snap) * snap);
+    const right = Math.min(w, Math.ceil((((x1 + 1) / 2) * w + pad) / snap) * snap);
+    const bottom = Math.min(h, Math.ceil((((1 - y0) / 2) * h + pad) / snap) * snap);
+    const rect = { x: left, y: top, width: right - left, height: bottom - top };
+    const key = `${rect.x},${rect.y},${rect.width},${rect.height}`;
+    if (key !== lastRect && rect.width > 0 && rect.height > 0) {
+      lastRect = key;
+      onRect(rect);
+    }
+  }
+
   const start = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); };
   document.addEventListener('visibilitychange', () => (document.hidden ? cancelAnimationFrame(raf) : start()));
   start();

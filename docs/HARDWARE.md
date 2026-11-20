@@ -149,3 +149,27 @@ any streaming.
 Tier 2 (direct `hidapi` on `187c:0551`) stays as the fallback. Access is already granted, so
 the custom udev rule is only needed on machines without `openrgb-udev-rules`.
 Tier 3 (mock strip) is always available.
+
+## Electron on this machine (measured in Phase 2, Electron 45.4.1)
+
+| Setup | Result |
+|---|---|
+| `app.commandLine.appendSwitch('ozone-platform', 'x11')` in main.js | ❌ too late: the browser stays native Wayland (window handle `0x1`), only the GPU process gets x11 → GPU process segfaults 3×, falls back to software, no WebGL |
+| same + `--use-angle=vulkan` | renders, but ANGLE picks the **RTX 3050** (dGPU wakes) |
+| native Wayland (no switch) | ✅ Intel, no crash, but no always-on-top or self-positioning |
+| `--ozone-platform=x11` **on the real command line** | ✅ X11 window, WebGL on **Intel (ANGLE OpenGL 4.6)**, no crash, **dGPU stays suspended** |
+
+- `app/main.js` therefore relaunches itself with `--ozone-platform=x11` (Electron records its
+  auto-detected platform in that switch, so the check compares the value; a marker argument stops loops).
+- Environment variables set inside main.js do **not** reach the GPU process (its `/proc/<pid>/environ`
+  lacked them), so `VK_DRIVER_FILES`-style fixes must come from the launcher, not the app.
+- `focusable: false` makes Chromium create an **override-redirect** X11 window (verified:
+  `override_redirect=1`, 32-bit ARGB visual). KWin leaves it unmanaged on layer 9
+  (OnScreenDisplay), above normal and keep-above windows, out of the taskbar and Alt-Tab.
+  `_NET_WM_STATE`/`WM_STATE` are absent, which is expected for unmanaged windows.
+- KWin does not publish `_NET_CLIENT_LIST` on the Xwayland root; find X11 windows with `XQueryTree`.
+- Electron 45's `getNativeWindowHandle()` is 4 bytes on X11 (`readUInt32LE`, not `readBigUInt64LE`).
+- `BrowserWindow.setShape()` sets only the X11 *bounding* shape; the *input* shape stays the full window.
+  `app/xinput_shape.py` sets the input shape (same mechanism as Electron's own `setIgnoreMouseEvents`).
+- Overlay cost at idle (24 FPS): 13.7 % of one core in total (renderer 7.4 %, GPU process 7.2 %,
+  main 0.2 %, shape helper 0 %). While acting: 61 FPS. The dGPU stayed suspended throughout.
