@@ -1,0 +1,4 @@
+# Install: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# Phase 1 only. The bridge deps (aiohttp, psutil, nvidia-ml-py, openrgb-python, hidapi, pyyaml) arrive in Phase 4+.
+Pillow    # read the emote sheet, write clean sprites + contact sheet
+numpy     # pixel-grid detection, mode colour per cell, palette quantization

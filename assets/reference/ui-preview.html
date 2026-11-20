@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Bot preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday maker toy, warm and playful but finished like a shipped app
+   IDEA a desktop at night with the overlay bot floating over a code editor
+   PICTURE the live desktop stage: bot, verb badge, particles; the dock beside it drives everything
+   COLOUR aubergine night ground, Claude terracotta lead, orange to crimson heat, rose pink for masti
+   TYPE Sora for titles and the badge, Inter for UI, JetBrains Mono for code and readouts
+   LAYOUT laptop: stage left, dock right, legend table below; phone: title, stage, dock, legend */
+:root{color-scheme:dark;--bg:#17121a;--ink:#f4eae5;--mut:#b7a6a4;--line:rgba(255,255,255,.1);--panel:rgba(255,255,255,.045);--terra:#E07A5F}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(22px,3.5vw,44px) max(4vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font:700 clamp(30px,4vw,44px)/1.05 Sora,sans-serif;letter-spacing:-.02em;margin:0 0 8px}
+.lead{color:var(--mut);margin:0;max-width:68ch}
+kbd{font:500 13px "JetBrains Mono",monospace;background:#2a2230;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)}
+.app{display:grid;gap:18px;margin-top:22px}
+@media(min-width:900px){.app{grid-template-columns:minmax(0,1fr) 340px}}
+#stage{position:relative;height:clamp(440px,62vw,580px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(120% 70% at 85% 110%,#5a2c2a 0,transparent 60%),radial-gradient(90% 60% at 0% 100%,#3b2238 0,transparent 65%),linear-gradient(165deg,#251a2a,#2f1e24 55%,#1d1419)}
+.win{position:absolute;left:5%;top:7%;width:min(70%,620px);bottom:70px;background:#1c1820;border:1px solid #33293a;border-radius:10px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.bar{height:30px;display:flex;align-items:center;gap:6px;padding:0 10px;background:#241e29;font:12.5px "JetBrains Mono",monospace;color:#9d8f99}
+.bar i{width:10px;height:10px;border-radius:50%;background:#4a3d4f}
+.bar span{margin-left:8px}
+pre{margin:0;padding:12px 14px;font:13px/1.7 "JetBrains Mono",monospace;color:#cfc3cb;overflow:hidden;white-space:pre}
+.n{color:#5d5163}.k{color:#ff9b7a}.s{color:#f2c879}.c{color:#7d6f80}.f{color:#9fd3c7}
+.task{position:absolute;left:0;right:0;bottom:0;height:38px;background:rgba(18,12,16,.88);border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;font:13px Inter,sans-serif;color:var(--mut)}
+.task b{width:22px;height:22px;border-radius:6px;background:#3a2f3f}
+.task b:first-child{background:var(--terra)}
+.task time{margin-left:auto}
+#cap{position:absolute;right:12px;top:12px;font:500 13px Inter,sans-serif;padding:6px 10px;border-radius:99px;background:rgba(20,14,18,.75);border:1px solid var(--line);color:var(--mut);transition:color .2s,border-color .2s;z-index:5}
+#cap.on{color:#ffd2c0;border-color:#E07A5F}
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+#bot{position:absolute;left:0;top:0;width:220px;height:220px;z-index:2;cursor:grab;touch-action:none;overflow:visible}
+#bot:active{cursor:grabbing}
+@media(max-width:600px){#bot{width:165px;height:165px}.win{width:86%;left:4%}pre{font-size:11.5px}}
+#badge{position:absolute;left:0;top:0;z-index:4;display:flex;align-items:center;gap:8px;padding:7px 12px 7px 10px;border-radius:99px;border:1px solid;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font:600 15px Sora,sans-serif;white-space:nowrap;will-change:transform}
+#star{width:16px;height:16px;flex:none}
+.slot{display:inline-grid;overflow:hidden;height:1.45em;line-height:1.45em;transition:width .35s ease}
+.w{grid-area:1/1;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s,filter .45s;white-space:nowrap}
+.enter{transform:translateY(100%);opacity:0;filter:blur(6px)}
+.leave{transform:translateY(-100%);opacity:0;filter:blur(6px)}
+.cur{transform:none;opacity:1;filter:none}
+#bpct{font:500 12px "JetBrains Mono",monospace;opacity:.8}
+#badge.hot .slot{animation:haze .16s steps(2) infinite alternate}
+@keyframes haze{from{transform:skewX(-2deg) translateY(.4px)}to{transform:skewX(2deg) translateY(-.4px)}}
+.dock{display:grid;gap:14px;align-content:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;backdrop-filter:blur(10px)}
+.card h2{font:600 15px Inter,sans-serif;margin:0 0 10px;color:var(--mut)}
+.pv{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+#pv{font:700 clamp(40px,5vw,52px)/1 Sora,sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+#sn{font:600 16px Inter,sans-serif}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:6px 0 0}
+input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:99px;background:linear-gradient(90deg,#E07A5F,#FF5500 50%,#FF1E00)}
+input[type=range]::-moz-range-track{height:10px;border-radius:99px;background:linear-gradient(90deg,#E07A5F,#FF5500 50%,#FF1E00)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-8px;border-radius:50%;background:#fff;border:4px solid #17121a;box-shadow:0 0 0 2px #fff}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:4px solid #17121a}
+input[type=range]:focus-visible{outline:2px solid #ffb59c;outline-offset:2px;border-radius:8px}
+.moods{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.moods button:nth-child(-n+3){grid-column:span 2}
+.moods button:nth-child(n+4){grid-column:span 3}
+button{font:600 14px Inter,sans-serif;color:var(--ink);background:#2a2230;border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 10px;cursor:pointer}
+button:hover{border-color:#6b5560}
+button:focus-visible{outline:2px solid #ffb59c;outline-offset:2px}
+button.act{background:#4a2a26;border-color:var(--terra);color:#ffe2d6}
+#mm.act{background:#4d1c2f;border-color:#FF5C8A}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;min-height:44px}
+.sw .t{width:44px;height:26px;border-radius:99px;background:#3a3040;position:relative;transition:background .2s;flex:none}
+.sw .t::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw[aria-pressed=true] .t{background:var(--terra)}
+.sw[aria-pressed=true] .t::after{transform:translateX(18px)}
+.note{font-size:13px;color:var(--mut);margin:8px 0 0}
+.src{display:flex;gap:6px;flex-wrap:wrap}
+.src span{font-size:13px;padding:5px 10px;border-radius:99px;border:1px solid var(--line);color:#7f7180}
+.src span.on{color:#ffe2d6;border-color:var(--terra);background:#3a2422}
+.kb{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:6px;border-radius:10px;background:#0f0b0e;border:1px solid #2c2430}
+.zone{--c:#000;display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:4px;border-radius:6px;background:var(--c);transition:none}
+.zone i{height:13px;border-radius:3px;background:rgba(14,10,13,.72)}
+.kbglow{height:10px;margin:0 10%;border-radius:50%;filter:blur(8px)}
+.ro{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;font:13px "JetBrains Mono",monospace;color:var(--mut)}
+.ro b{color:var(--ink);font-weight:500;white-space:nowrap}
+.legend h2{font:700 26px/1.1 Sora,sans-serif;letter-spacing:-.02em;margin:0 0 6px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:15px}
+th{text-align:left;font-weight:600;color:var(--mut);font-size:13px;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+td:nth-child(2){white-space:nowrap;font:13px "JetBrains Mono",monospace;color:#ffc3ad}
+.sw-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:1px}
+@media(max-width:600px){table{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:3px 0;text-align:right;white-space:normal}.stack td::before{content:attr(data-l);color:var(--mut);text-align:left;font:13px Inter,sans-serif}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<div class="band"><div class="wrap">
+<h1>Claude Bot preview</h1>
+<p class="lead">Move the pressure slider, pick a mood, or press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>M</kbd> for masti mode. Drag the bot anywhere and it stays inside the screen. Everything here is simulated: no keyboard hardware or Claude Code is connected.</p>
+
+<div class="app">
+ <div id="stage" aria-label="Simulated desktop with the floating bot">
+  <div class="win"><div class="bar"><i></i><i></i><i></i><span>rgb_bridge.py · claude-bot</span></div>
+<pre><span class="n"> 1</span> <span class="k">import</span> asyncio, colorsys
+<span class="n"> 2</span> <span class="k">from</span> drivers <span class="k">import</span> pick_driver
+<span class="n"> 3</span>
+<span class="n"> 4</span> MAX_FPS = <span class="s">20</span>   <span class="c"># protect the HID bus</span>
+<span class="n"> 5</span>
+<span class="n"> 6</span> <span class="k">async def</span> <span class="f">run</span>(bus):
+<span class="n"> 7</span>     drv = pick_driver()  <span class="c"># openrgb, dell, mock</span>
+<span class="n"> 8</span>     <span class="k">async for</span> frame <span class="k">in</span> bus.frames(MAX_FPS):
+<span class="n"> 9</span>         rgb = lerp_hsv(drv.last, frame.target)
+<span class="n">10</span>         drv.write(rgb)
+<span class="n">11</span>
+<span class="n">12</span> <span class="k">def</span> <span class="f">pressure</span>(hooks, sysload):
+<span class="n">13</span>     <span class="k">return</span> ema(<span class="s">0.7</span>*hooks + <span class="s">0.3</span>*sysload)</pre></div>
+  <div class="task"><b></b><b></b><b></b><b></b><time>12:07</time></div>
+  <div id="cap">Click-through on</div>
+
+  <svg id="bot" viewBox="-130 -130 260 260" aria-label="Claude Bot mascot">
+   <defs>
+    <radialGradient id="bodyG" cx="36%" cy="30%" r="75%"><stop id="b0" offset="0"/><stop id="b1" offset=".55"/><stop id="b2" offset="1"/></radialGradient>
+    <radialGradient id="auraG"><stop id="a0" offset=".42"/><stop id="a1" offset="1" stop-opacity="0"/></radialGradient>
+    <clipPath id="cL"><ellipse rx="11" ry="13"/></clipPath>
+    <clipPath id="cR"><ellipse rx="11" ry="13"/></clipPath>
+   </defs>
+   <ellipse id="shadow" cx="0" cy="112" rx="46" ry="7" fill="rgba(0,0,0,.35)"/>
+   <g id="root">
+    <circle id="aura" r="100" fill="url(#auraG)"/>
+    <circle id="ring" r="80" fill="none" stroke-width="3"/>
+    <g id="holo">
+     <rect x="-30" y="-20" width="60" height="40" rx="6" fill="rgba(255,140,60,.12)" stroke="rgba(255,170,110,.75)"/>
+     <text x="-25" y="-8" font-family="JetBrains Mono" font-size="7" fill="#ffc9a8">&gt;_</text>
+     <rect id="hl0" x="-14" y="-12" height="3" rx="1.5" fill="rgba(255,200,160,.85)"/>
+     <rect id="hl1" x="-24" y="-3" height="3" rx="1.5" fill="rgba(255,200,160,.7)"/>
+     <rect id="hl2" x="-24" y="4" height="3" rx="1.5" fill="rgba(255,200,160,.7)"/>
+     <rect id="hl3" x="-24" y="11" height="3" rx="1.5" fill="rgba(255,150,90,.9)"/>
+    </g>
+    <g id="body">
+     <path id="ant" d="M0,-62 Q3,-80 15,-85" fill="none" stroke-width="4.5" stroke-linecap="round"/>
+     <circle id="tip" cx="16" cy="-86" r="5.5"/>
+     <path d="M0,-66 C42,-66 66,-42 66,-4 C66,36 44,62 0,62 C-44,62 -66,36 -66,-4 C-66,-42 -42,-66 0,-66Z" fill="url(#bodyG)"/>
+     <path d="M-38,-48 Q-20,-60 4,-58" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="5" stroke-linecap="round"/>
+     <ellipse class="ck" cx="-40" cy="13" rx="9" ry="5" fill="#ff8a8a"/>
+     <ellipse class="ck" cx="40" cy="13" rx="9" ry="5" fill="#ff8a8a"/>
+     <g transform="translate(-22,-10)"><g clip-path="url(#cL)"><ellipse rx="11" ry="13" fill="#fffaf6"/><circle id="pL" r="6"/><circle id="hL" r="2" fill="#fff"/><rect id="lidL" class="lid" x="-14" y="-14" width="28" height="0"/></g></g>
+     <g id="eyeR" transform="translate(22,-10)"><g clip-path="url(#cR)"><ellipse rx="11" ry="13" fill="#fffaf6"/><circle id="pR" r="6"/><circle id="hR" r="2" fill="#fff"/><rect id="lidR" class="lid" x="-14" y="-14" width="28" height="0"/></g></g>
+     <path id="winkR" d="M12,-8 Q22,-19 32,-8" fill="none" stroke="#2a1712" stroke-width="4" stroke-linecap="round"/>
+     <path id="browL" d="M-10,0 L10,0" stroke="#2a1712" stroke-width="4.5" stroke-linecap="round"/>
+     <path id="browR" d="M-10,0 L10,0" stroke="#2a1712" stroke-width="4.5" stroke-linecap="round"/>
+     <path id="mouth" fill="none" stroke="#2a1712" stroke-width="3.5" stroke-linecap="round"/>
+     <g id="grit"><rect x="-14" y="12" width="28" height="12" rx="4" fill="#fff4ee" stroke="#2a1712" stroke-width="2.5"/><path d="M-14,18 H14 M-7,12 V24 M0,12 V24 M7,12 V24" stroke="#2a1712" stroke-width="1.5"/></g>
+     <g id="rose">
+      <path d="M-56,20 C-30,25 10,22 42,15" stroke="#2f8f46" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M-14,22 l-3,-5 M14,21 l3,5 M28,17 l-2,-5" stroke="#2f8f46" stroke-width="2" stroke-linecap="round"/>
+      <path d="M-22,22 q8,-15 23,-9 q-10,11 -23,9z" fill="#3fae5a"/>
+      <path d="M6,21 q10,13 23,6 q-10,-11 -23,-6z" fill="#2f8f46"/>
+      <g transform="translate(-64,17) rotate(-14)">
+       <path d="M10,2 l9,-5 l-3,7 l7,3 l-9,2z" fill="#2f8f46"/>
+       <circle r="13" fill="#a8102b"/>
+       <path d="M-12,2 C-14,-12 0,-16 6,-8 C14,-12 18,4 8,8 C2,14 -10,12 -12,2Z" fill="#d7193c"/>
+       <path d="M-6,0 C-6,-8 4,-9 5,-2 C6,4 -4,6 -6,0Z" fill="#ef3355"/>
+       <path d="M-2,-1 q2,-3 4,0 q-1,3 -4,1" stroke="#8e0c22" stroke-width="1.3" fill="none"/>
+      </g>
+     </g>
+     <g id="mug" transform="translate(64,24)">
+      <path d="M11,-6 q10,0 10,7 q0,7 -10,7" stroke="#f3e6dc" stroke-width="4" fill="none"/>
+      <rect x="-11" y="-12" width="22" height="24" rx="5" fill="#f3e6dc"/>
+      <rect x="-11" y="0" width="22" height="4" fill="#E07A5F"/>
+      <ellipse cy="-11" rx="9" ry="2.5" fill="#6b3b24"/>
+     </g>
+     <circle class="hand" cx="-62" cy="28" r="11"/>
+     <circle class="hand" cx="58" cy="30" r="11"/>
+    </g>
+    <g id="glyphs" font-family="JetBrains Mono" font-weight="500" font-size="18" fill="#ffd9c7" text-anchor="middle">
+     <text id="g1">{ }</text><text id="g2">&lt;/&gt;</text>
+    </g>
+   </g>
+  </svg>
+
+  <div id="badge" role="status" aria-live="off">
+   <svg id="star" viewBox="-10 -10 20 20"><g id="starG" stroke-width="2.6" stroke-linecap="round"><path d="M0,-8V8M-7,-4L7,4M-7,4L7,-4"/></g></svg>
+   <span class="slot" id="slot"></span>
+   <span id="bpct">8%</span>
+  </div>
+  <canvas id="fx"></canvas>
+ </div>
+
+ <div class="dock">
+  <div class="card">
+   <h2>Pressure</h2>
+   <div class="pv"><span id="pv">8%</span><span id="sn">Idle / chill</span></div>
+   <label for="pr" class="note" style="display:block">Simulated workload, 0 to 100</label>
+   <input id="pr" type="range" min="0" max="100" value="8">
+   <div class="moods" id="moods">
+    <button data-p="8">Idle</button><button data-p="32">Light</button><button data-p="60">Deep</button><button data-p="92">Overdrive</button><button id="mm">Masti</button>
+   </div>
+   <div class="row">
+    <button class="sw" id="auto" aria-pressed="false"><span class="t"></span><span>Auto-demo loop</span></button>
+   </div>
+   <p class="note">Masti also starts on its own after 25 s of idle.</p>
+  </div>
+  <div class="card">
+   <h2>Input source</h2>
+   <div class="src"><span>Claude Code hooks</span><span>System load</span><span class="on">Simulator</span></div>
+   <p class="note">Hooks and CPU/GPU load connect in the desktop app.</p>
+  </div>
+  <div class="card">
+   <h2>Keyboard backlight · G15 4-zone · mock driver</h2>
+   <div class="kb" id="kb"></div>
+   <div class="kbglow" id="kbg"></div>
+   <div class="ro"><span>Effect <b id="eff">Breathing</b></span><span>Zone 1 <b id="hex">#E07A5F</b></span><span>Writes <b id="fps">20/s</b></span></div>
+  </div>
+ </div>
+</div>
+</div></div>
+
+<div class="band legend" style="padding-top:0"><div class="wrap">
+ <h2>Five moods, one pressure score</h2>
+ <p class="lead">The badge colour runs terracotta → Claude orange → crimson as pressure rises. Above 80% it shimmers and throws embers. Verbs change every 4 s at rest and every 2.5 s at full load.</p>
+ <div class="scroll"><table class="stack">
+  <thead><tr><th>Mood</th><th>Trigger</th><th>Bot</th><th>Keyboard</th></tr></thead>
+  <tbody id="leg"></tbody>
+ </table></div>
+</div></div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const rgba=(c,a=1)=>`rgba(${c.map(v=>Math.round(Math.max(0,Math.min(255,v)))).join(',')},${a})`;
+const toHex=c=>'#'+c.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('').toUpperCase();
+const T=hx('#E07A5F'),O=hx('#FF5500'),R=hx('#FF1E00'),PK=hx('#FF0055'),PL=hx('#FF758F'),TERRA=hx('#D97757'),HOTB=hx('#F2401C'),AMB=hx('#FFB347'),CORAL=hx('#FF7F50');
+const W0=[255,255,255],K0=[0,0,0];
+const heat=p=>p<50?mix(T,O,p/50):mix(O,R,(p-50)/50);
+const VERBS={chill:['Percolating...','Simmering...','Daydreaming...','Tinkering...','Vibing...','Brewing...'],focus:['Blooming...','Seasoning...','Weaving...','Architecting...','Synthesizing...','Refactoring...'],hot:['Overclocking...','Inferno-compiling...','Hyper-threading...','Crunching...','Melting-silicon...','Turbo-seasoning...'],masti:['Charming...','Smooth-talking...','Rizzing...','Taking-a-breather...']};
+const NAMES={idle:'Idle / chill',light:'Light work',deep:'Deep coding',over:'Overdrive',masti:'Masti mode'};
+const EFF={idle:'Breathing 0.2 Hz',light:'Steady coral',deep:'Orange pulse',over:'Heartbeat 1.5 Hz',masti:'Rose shimmer'};
+const MOUTH={idle:'M-12,17 Q0,26 12,17',light:'M-10,17 Q0,25 10,17',deep:'M-10,20 Q0,17 10,19',over:'',masti:'M-12,19 Q2,25 14,13'};
+const BROW={idle:{y:-31,a:-5,b:5},light:{y:-34,a:0,b:0},deep:{y:-28,a:14,b:-14},over:{y:-26,a:24,b:-24},masti:{y:-31,a:-12,b:12}};
+const LID={idle:11,light:0,deep:3,over:5,masti:3};
+const LEG=[['Idle / chill','0–15%','Half-lidded smile, coffee mug, drifting zZz','Slow terracotta breathing, 0.2 Hz','#E07A5F'],['Light work','16–45%','Alert eyes, forward lean and nod, orbiting { } and </>','Steady coral-orange glow','#FF7F50'],['Deep coding','46–75%','Angled brows, glowing eyes, holo terminal, sparks, quick bounce','Energetic orange pulse','#FF5500'],['Overdrive','76–100%','Furrowed brows, gritted teeth, sweat, steam, 1–2 px jitter, crimson ring','Crimson heartbeat, 1.5 Hz, slight flicker','#FF1E00'],['Masti','Ctrl+Shift+M, button, long idle','Tilt, wink, smirk, red rose clenched in mouth, hearts and sparkles','Magenta-rose shimmer wave','#FF0055']];
+$('leg').innerHTML=LEG.map(r=>`<tr><td><span class="sw-dot" style="background:${r[4]}"></span>${r[0]}</td><td>${r[1]}</td><td>${r[2].replace(/</g,'&lt;')}</td><td>${r[3]}</td></tr>`).join('');
+$('kb').innerHTML=[0,1,2,3].map(()=>`<div class="zone">${'<i></i>'.repeat(20)}</div>`).join('');
+const zones=[...document.querySelectorAll('.zone')];
+
+let P=8,masti=false,auto=false,curSt='',idleSince=performance.now(),randM=false,mUntil=0;
+const stage=$('stage'),svg=$('bot'),badge=$('badge'),cv=$('fx'),ctx=cv.getContext('2d');
+let W=0,H=0,sz=220,pos={x:0,y:0},placed=false,mouse=null,drag=null;
+const bp={x:0,y:0},bv={x:0,y:0};
+const stateOf=()=>masti?'masti':P<=15?'idle':P<=45?'light':P<=75?'deep':'over';
+const poolOf=()=>masti?'masti':P<=30?'chill':P<=70?'focus':'hot';
+
+function clampPos(){pos.x=Math.max(0,Math.min(W-sz,pos.x));pos.y=Math.max(0,Math.min(H-38-sz,pos.y));}
+function save(){try{localStorage.setItem('cbpos',JSON.stringify({fx:pos.x/Math.max(1,W-sz),fy:pos.y/Math.max(1,H-38-sz)}))}catch(e){}}
+function resize(){
+ W=stage.clientWidth;H=stage.clientHeight;sz=svg.getBoundingClientRect().width||220;
+ const d=devicePixelRatio||1;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0);
+ if(!placed){let f={fx:.66,fy:.3};try{const s=JSON.parse(localStorage.getItem('cbpos'));if(s&&isFinite(s.fx))f=s}catch(e){}
+  pos.x=f.fx*(W-sz);pos.y=f.fy*(H-38-sz);placed=true;bp.x=pos.x+sz;bp.y=pos.y;}
+ clampPos();
+}
+const ro=new ResizeObserver(resize);ro.observe(stage);
+
+function setP(v,user){P=Math.max(0,Math.min(100,v));$('pr').value=Math.round(P);$('pv').textContent=Math.round(P)+'%';$('bpct').textContent=Math.round(P)+'%';
+ if(user){setAuto(false);masti=false;randM=false;idleSince=performance.now();}}
+function setAuto(on){auto=on;$('auto').setAttribute('aria-pressed',on);if(on){seqI=0;seqT=0;fromP=P;}else if(!randM)masti=masti&&false;}
+$('pr').addEventListener('input',e=>setP(+e.target.value,true));
+$('moods').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.id==='mm')toggleMasti();else setP(+b.dataset.p,true);});
+function toggleMasti(){const was=masti&&!randM;setAuto(false);masti=!was;randM=false;idleSince=performance.now();}
+$('auto').addEventListener('click',()=>setAuto(!auto));
+addEventListener('keydown',e=>{if(e.ctrlKey&&e.shiftKey&&(e.key==='M'||e.key==='m')){e.preventDefault();toggleMasti();}});
+addEventListener('pointermove',e=>{mouse={x:e.clientX,y:e.clientY};});
+
+const cap=$('cap');
+for(const el of [svg,badge]){el.addEventListener('pointerenter',()=>{cap.textContent='Mouse captured: over the bot';cap.classList.add('on')});
+ el.addEventListener('pointerleave',()=>{if(!drag){cap.textContent='Click-through on';cap.classList.remove('on')}});}
+svg.addEventListener('pointerdown',e=>{const r=stage.getBoundingClientRect();drag={ox:e.clientX-r.left-pos.x,oy:e.clientY-r.top-pos.y};svg.setPointerCapture(e.pointerId);});
+svg.addEventListener('pointermove',e=>{if(!drag)return;const r=stage.getBoundingClientRect();pos.x=e.clientX-r.left-drag.ox;pos.y=e.clientY-r.top-drag.oy;clampPos();});
+svg.addEventListener('pointerup',()=>{drag=null;save();});
+
+const SEQ=[{p:8,h:5},{p:34,h:5},{p:62,h:6},{p:94,h:7},{p:10,h:3},{p:10,h:6,m:1}];
+let seqI=0,seqT=0,fromP=8;
+function updateAuto(dt,now){
+ if(auto){seqT+=dt;const s=SEQ[seqI],tr=Math.min(1,seqT/2.5),e=tr<.5?2*tr*tr:1-((2-2*tr)**2)/2;
+  setP(fromP+(s.p-fromP)*e,false);masti=!!s.m;if(seqT>2.5+s.h){fromP=s.p;seqI=(seqI+1)%SEQ.length;seqT=0;}return;}
+ if(randM&&now>mUntil){masti=false;randM=false;idleSince=now;}
+ if(!masti&&stateOf()==='idle'&&now-idleSince>25000){masti=true;randM=true;mUntil=now+8000;}
+ if(stateOf()!=='idle'&&!masti)idleSince=now;
+}
+
+const show=(id,on)=>{$(id).style.display=on?'':'none'};
+function applyState(st){curSt=st;
+ show('mug',st==='idle');show('glyphs',st==='light');show('holo',st==='deep');show('grit',st==='over');show('mouth',st!=='over');
+ show('rose',st==='masti');show('winkR',st==='masti');show('eyeR',st!=='masti');show('ring',st==='over');
+ if(MOUTH[st])$('mouth').setAttribute('d',MOUTH[st]);
+ $('sn').textContent=NAMES[st];$('eff').textContent=EFF[st];
+ const bt=[...$('moods').children];bt.forEach(b=>b.classList.remove('act'));
+ const idx={idle:0,light:1,deep:2,over:3,masti:4}[st];bt[idx].classList.add('act');
+ for(const c of document.querySelectorAll('.ck'))c.setAttribute('opacity',st==='masti'?.65:st==='over'?.55:.35);
+ $('pL').setAttribute('r',st==='over'?4.5:6);$('pR').setAttribute('r',st==='over'?4.5:6);
+ const pf=st==='deep'?'#ff7a2a':'#2a1712';$('pL').setAttribute('fill',pf);$('pR').setAttribute('fill',pf);
+}
+
+const cb={y:-31,a:-5,b:5};let lidL=11,lidR=11,nextBlink=2,blinkAt=-1,holoT=0;
+let pool='',verb='',nextVerb=0,starA=0;
+function setVerb(w){const slot=$('slot'),old=slot.querySelector('.cur');const s=document.createElement('span');s.className='w enter';s.textContent=w;slot.appendChild(s);
+ slot.style.width=s.scrollWidth+'px';requestAnimationFrame(()=>requestAnimationFrame(()=>{s.className='w cur'}));
+ if(old){old.className='w leave';setTimeout(()=>old.remove(),500);}verb=w;}
+function pick(p){const a=VERBS[p].filter(v=>v!==verb);return a[Math.floor(Math.random()*a.length)];}
+
+const parts=[],acc={};
+function emit(type,x,y,vx,vy,life,s,g=0,c=null){if(parts.length<260)parts.push({type,x,y,vx,vy,life,max:life,s,g,c,r:Math.random()*6});}
+function rate(type,r,dt,fn){acc[type]=(acc[type]||0)+r*dt;while(acc[type]>=1){acc[type]--;fn();}}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+function frame(now){
+ const dt=Math.min(.05,(now-last)/1000);last=now;const t=(now-t0)/1000;
+ updateAuto(dt,now);
+ const st=stateOf();if(st!==curSt)applyState(st);
+ const k=sz/260;
+ // motion
+ const f={idle:.35,light:.5,deep:.6,over:.75,masti:.45}[st];
+ const ph=t*f*Math.PI*2;let by=rm?0:Math.sin(ph)*6.5;
+ if(st==='deep'&&!rm)by+=Math.sin(t*Math.PI*2*3)*1.6;
+ let jx=0,jy=0;if(st==='over'&&!rm){jx=rnd(-1.6,1.6)/k*.6;jy=rnd(-1.6,1.6)/k*.6;}
+ let rot={idle:0,light:5,deep:4,over:0,masti:-8}[st];
+ if(!rm){if(st==='light')rot+=2*Math.sin(t*Math.PI*2);if(st==='masti')rot+=2.5*Math.sin(t*2);}
+ $('root').setAttribute('transform',`translate(${jx},${by+jy}) rotate(${rot})`);
+ const sq=rm?0:Math.max(0,Math.sin(ph));
+ $('body').setAttribute('transform',`translate(0,62) scale(${1+.035*sq},${1-.045*sq}) translate(0,-62)`);
+ $('shadow').setAttribute('rx',46-by*1.1);$('shadow').setAttribute('opacity',.8-by*.03);
+ svg.style.transform=`translate(${pos.x}px,${pos.y}px)`;
+ // colours
+ const main=st==='masti'?mix(TERRA,hx('#E8607A'),.25):P<=60?TERRA:mix(TERRA,HOTB,(P-60)/40);
+ const hc=st==='masti'?mix(PK,PL,(Math.sin(t*3)+1)/2):heat(P);
+ $('b0').setAttribute('stop-color',toHex(mix(main,[255,232,214],.45)));$('b1').setAttribute('stop-color',toHex(main));$('b2').setAttribute('stop-color',toHex(mix(main,[70,16,10],.42)));
+ for(const l of document.querySelectorAll('.lid'))l.setAttribute('fill',toHex(mix(main,K0,.06)));
+ for(const h of document.querySelectorAll('.hand'))h.setAttribute('fill',toHex(mix(main,[70,16,10],.18)));
+ $('ant').setAttribute('stroke',toHex(mix(main,[70,16,10],.3)));$('tip').setAttribute('fill',toHex(hc));
+ const beat=st==='over'?Math.max(0,Math.sin(t*Math.PI*3)):0;
+ $('a0').setAttribute('stop-color',toHex(hc));$('a0').setAttribute('stop-opacity',({idle:.22,light:.28,deep:.42,over:.5,masti:.42}[st])+beat*.25);
+ $('ring').setAttribute('stroke',toHex(R));$('ring').setAttribute('r',80+beat*7);$('ring').setAttribute('opacity',.35+beat*.5);
+ // brows and eyes
+ const bt=BROW[st],e=Math.min(1,dt*10);cb.y+=(bt.y-cb.y)*e;cb.a+=(bt.a-cb.a)*e;cb.b+=(bt.b-cb.b)*e;
+ $('browL').setAttribute('transform',`translate(-22,${cb.y}) rotate(${cb.a})`);$('browR').setAttribute('transform',`translate(22,${cb.y}) rotate(${cb.b})`);
+ if(t>nextBlink){blinkAt=t;nextBlink=t+rnd(3,5);}
+ const bl=i=>{const d=t-blinkAt-i*.04;return d>=0&&d<.16?Math.sin(d/.16*Math.PI):0};
+ const base=LID[st];lidL+=(base-lidL)*e;lidR+=(base-lidR)*e;
+ $('lidL').setAttribute('height',lidL+(28-lidL)*bl(0));$('lidR').setAttribute('height',lidR+(28-lidR)*bl(1));
+ const r=svg.getBoundingClientRect(),kk=r.width/260;
+ [['pL','hL',-22],['pR','hR',22]].forEach(([p,h,ex])=>{let px=0,py=st==='idle'?2.5:0;
+  if(mouse){const cx=r.left+r.width/2+ex*kk,cy=r.top+r.height/2-10*kk,dx=mouse.x-cx,dy=mouse.y-cy,d=Math.hypot(dx,dy)||1,m=Math.min(1,d/140)*4.5;px=dx/d*m;py+=dy/d*m;}
+  else{px=Math.sin(t*.7)*3;}
+  $(p).setAttribute('cx',px);$(p).setAttribute('cy',py);$(h).setAttribute('cx',px+2);$(h).setAttribute('cy',py-2.5);});
+ // props
+ if(st==='light'){const a=t*1.3;$('g1').setAttribute('x',Math.cos(a)*92);$('g1').setAttribute('y',Math.sin(a)*28-14);$('g2').setAttribute('x',Math.cos(a+Math.PI)*92);$('g2').setAttribute('y',Math.sin(a+Math.PI)*28-14);
+  $('g1').setAttribute('opacity',.55+.45*(Math.sin(a)+1)/2);$('g2').setAttribute('opacity',.55+.45*(Math.sin(a+Math.PI)+1)/2);}
+ if(st==='deep'){$('holo').setAttribute('transform',`translate(84,${-92+Math.sin(t*2)*3})`);holoT-=dt;if(holoT<=0){holoT=.25;['hl0','hl1','hl2','hl3'].forEach((id,i)=>$(id).setAttribute('width',i?rnd(10,46):rnd(14,36)));}}
+ // badge
+ const p=poolOf();if(p!==pool||now>nextVerb){pool=p;setVerb(pick(p));nextVerb=now+4000-1500*P/100;}
+ const bw=badge.offsetWidth,bh=badge.offsetHeight;
+ let tx=pos.x+sz*.8;if(tx+bw>W-8)tx=pos.x+sz*.2-bw;tx=Math.max(8,tx);
+ const ty=Math.max(8,pos.y+sz*.12+by*k*.5);
+ for(const ax of ['x','y']){const tg=ax==='x'?tx:ty;bv[ax]+=((tg-bp[ax])*120-bv[ax]*14)*dt;bp[ax]+=bv[ax]*dt;}
+ if(rm){bp.x=tx;bp.y=ty;}
+ badge.style.transform=`translate(${bp.x}px,${bp.y}px)`;
+ badge.style.borderColor=rgba(hc,.75);badge.style.background=rgba(mix([30,18,22],hc,.2),.78);badge.style.color=toHex(mix(hc,W0,.38));
+ badge.style.boxShadow=`0 0 ${6+P/4}px ${rgba(hc,.5)}, inset 0 0 14px ${rgba(hc,.18)}`;
+ badge.classList.toggle('hot',P>80&&st!=='masti'&&!rm);
+ starA+=dt*(60+P*5);$('starG').setAttribute('transform',`rotate(${starA})`);$('starG').setAttribute('stroke',toHex(hc));
+ // particles
+ const L=(lx,ly)=>[pos.x+(lx+130)*k,pos.y+(ly+130+by)*k];
+ if(!rm){
+  if(st==='idle'){rate('z',.6,dt,()=>{const[x,y]=L(34,-78);emit('z',x,y,14,-24,2.2,rnd(11,16));});rate('mug',2.2,dt,()=>{const[x,y]=L(64+rnd(-5,5),10);emit('steam',x,y,rnd(-4,4),-18,1.5,2.5,0,.32);});}
+  if(st==='deep')rate('spk',5,dt,()=>{const a=rnd(0,Math.PI*2),[x,y]=L(Math.cos(a)*70,Math.sin(a)*64);emit('spark',x,y,Math.cos(a)*40,Math.sin(a)*40,.6,rnd(1.2,2.2));});
+  if(st==='over'){rate('sw',3.2,dt,()=>{const sd=Math.random()<.5?-1:1,[x,y]=L(sd*60,-34);emit('drop',x,y,sd*rnd(60,90),-rnd(30,60),.9,rnd(4,6),300);});
+   rate('st',6,dt,()=>{const[x,y]=L(rnd(-22,22),-70);emit('steam',x,y,rnd(-16,16),-rnd(50,75),1,4,0,.55);});}
+  if(P>80&&st!=='masti')rate('emb',10,dt,()=>emit('ember',bp.x+rnd(0,bw),bp.y+bh-2,rnd(-10,10),-rnd(40,75),1.2,rnd(1.2,2.6)));
+  if(st==='masti'){rate('hrt',1.8,dt,()=>{const[x,y]=L(rnd(-60,60),rnd(-50,10));emit('heart',x,y,rnd(-8,8),-rnd(28,40),2,rnd(8,13),0,Math.random()<.5?'#ff5c8a':'#ff9fb6');});
+   rate('spl',3.5,dt,()=>{const a=rnd(0,Math.PI*2),[x,y]=L(Math.cos(a)*rnd(70,100),Math.sin(a)*rnd(60,95));emit('sparkle',x,y,0,-10,.9,rnd(3,6),0,Math.random()<.5?'#ffd166':'#ffb3c7');});}
+ }
+ ctx.clearRect(0,0,W,H);
+ for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.life-=dt;if(q.life<=0){parts.splice(i,1);continue;}
+  q.vy+=q.g*dt;q.x+=q.vx*dt;q.y+=q.vy*dt;const a=q.life/q.max;draw(q,a,t);}
+ requestAnimationFrame(frame);
+}
+function draw(q,a,t){
+ ctx.save();
+ if(q.type==='z'){ctx.globalAlpha=a*.85;ctx.fillStyle='#f6d3c4';ctx.font=`600 ${q.s}px Sora,sans-serif`;ctx.fillText('z',q.x+Math.sin(t*2+q.r)*4,q.y);}
+ else if(q.type==='steam'){ctx.globalAlpha=a*q.c;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(q.x,q.y,q.s+(1-a)*10,0,7);ctx.fill();}
+ else if(q.type==='spark'){ctx.globalAlpha=a;ctx.fillStyle='#ffb347';ctx.beginPath();ctx.arc(q.x,q.y,q.s,0,7);ctx.fill();}
+ else if(q.type==='ember'){ctx.globalAlpha=a;ctx.fillStyle=rgba(mix(R,AMB,a*.7));ctx.beginPath();ctx.arc(q.x+Math.sin(t*6+q.r)*2,q.y,q.s,0,7);ctx.fill();}
+ else if(q.type==='drop'){ctx.globalAlpha=Math.min(1,a*1.4);ctx.fillStyle='#86ccff';ctx.translate(q.x,q.y);ctx.rotate(Math.atan2(q.vy,q.vx)-Math.PI/2);const s=q.s;
+  ctx.beginPath();ctx.moveTo(0,s);ctx.bezierCurveTo(s*.7,0,s*.6,-s,0,-s);ctx.bezierCurveTo(-s*.6,-s,-s*.7,0,0,s);ctx.fill();}
+ else if(q.type==='heart'){ctx.globalAlpha=Math.min(1,a*1.5);ctx.fillStyle=q.c;const x=q.x+Math.sin(t*2+q.r)*5,y=q.y,s=q.s;
+  ctx.beginPath();ctx.moveTo(x,y+s*.3);ctx.bezierCurveTo(x,y,x-s*.5,y,x-s*.5,y+s*.3);ctx.bezierCurveTo(x-s*.5,y+s*.6,x,y+s*.8,x,y+s);ctx.bezierCurveTo(x,y+s*.8,x+s*.5,y+s*.6,x+s*.5,y+s*.3);ctx.bezierCurveTo(x+s*.5,y,x,y,x,y+s*.3);ctx.fill();}
+ else if(q.type==='sparkle'){ctx.globalAlpha=Math.sin(a*Math.PI);ctx.fillStyle=q.c;const x=q.x,y=q.y,s=q.s;
+  ctx.beginPath();ctx.moveTo(x,y-s);ctx.quadraticCurveTo(x,y,x+s,y);ctx.quadraticCurveTo(x,y,x,y+s);ctx.quadraticCurveTo(x,y,x-s,y);ctx.quadraticCurveTo(x,y,x,y-s);ctx.fill();}
+ ctx.restore();
+}
+
+// keyboard: throttled to 20 writes per second, colours lerp toward each target
+const zc=[T,T,T,T].map(c=>c.slice());let writes=0,wsec=performance.now();
+function effect(st,t,z){
+ if(st==='idle'){const s=(Math.sin(t*Math.PI*2*.2)+1)/2;return mix(mix(T,AMB,s*.5),K0,.65-.65*s);}
+ if(st==='light')return mix(CORAL,K0,.08);
+ if(st==='deep'){const b=.6+.4*Math.abs(Math.sin(t*Math.PI*1.2+z*.35));return mix(O,K0,1-b);}
+ if(st==='over'){const ph=(t*1.5)%1,g=x=>Math.exp(-(((ph-x)/.06)**2)),bt=Math.min(1,g(0)+g(1)+.7*g(.22)),b=(.35+.65*bt)*(.9+.1*Math.random());return mix(R,K0,1-b);}
+ return mix(mix(PK,PL,(Math.sin(t*Math.PI+z*.8)+1)/2),K0,.05);
+}
+setInterval(()=>{const now=performance.now(),t=(now-t0)/1000,st=stateOf();
+ zones.forEach((el,z)=>{zc[z]=mix(zc[z],effect(st,t,z),.35);el.style.setProperty('--c',rgba(zc[z]));});
+ $('kbg').style.background=rgba(zc[1],.55);$('hex').textContent=toHex(zc[0]);
+ writes++;if(now-wsec>=1000){$('fps').textContent=writes+'/s';writes=0;wsec=now;}},50);
+
+let last=performance.now();const t0=last;
+resize();applyState(stateOf());requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

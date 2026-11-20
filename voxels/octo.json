@@ -1,0 +1,31 @@
+{
+  "about": "Pixel Octo base model. 1 voxel = 1 octo pixel. Each part: at = [x, y, z] of the top-left of slice 0; slices[0] is the front (z goes down per slice), rows run top to bottom (y goes down per row); '.' is empty, other chars are palette keys. thick < 1 makes a flat decal (face parts). x right, y up, z towards the viewer.",
+  "palette": {
+    "o": "#F87A4B",
+    "s": "#D2562F",
+    "e": "#191617"
+  },
+  "parts": {
+    "body": {
+      "at": [0, 10, 3],
+      "slices": [
+        ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
+        ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
+        ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
+        ["...oooooo...", "..oooooooo..", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo.", ".oooooooooo."]
+      ]
+    },
+    "armL": { "at": [-1, 5, 2], "slices": [["o", "o"], ["o", "o"]] },
+    "armR": { "at": [12, 5, 2], "slices": [["o", "o"], ["o", "o"]] },
+    "legF0": { "at": [1, 1, 3], "slices": [["s", "s"]] },
+    "legF1": { "at": [4, 1, 3], "slices": [["s", "s"]] },
+    "legF2": { "at": [7, 1, 3], "slices": [["s", "s"]] },
+    "legF3": { "at": [10, 1, 3], "slices": [["s", "s"]] },
+    "legB0": { "at": [1, 1, 0], "slices": [["s", "s"]] },
+    "legB1": { "at": [4, 1, 0], "slices": [["s", "s"]] },
+    "legB2": { "at": [7, 1, 0], "slices": [["s", "s"]] },
+    "legB3": { "at": [10, 1, 0], "slices": [["s", "s"]] },
+    "eyesOpen": { "at": [3, 6, 3.6], "thick": 0.2, "slices": [["e....e", "e....e"]] },
+    "eyesClosed": { "at": [3, 5, 3.6], "thick": 0.2, "hidden": true, "slices": [["e....e"]] }
+  }
+}
