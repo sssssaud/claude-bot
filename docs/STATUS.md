@@ -148,9 +148,24 @@
    from the dock. Phase 4: the bridge finds the real terminal. Wayland apps can't see other windows,
    so a small KWin script reports the window of the terminal that runs Claude Code (its process →
    KWin window `pid`), over D-Bus.
-2. **Future upgrade, not scheduled yet:** click the octo → quick-settings popup to control
-   Bluetooth, Wi-Fi, brightness and show battery %. Through the bridge: BlueZ and NetworkManager
-   D-Bus, UPower/psutil, KDE PowerDevil brightness. (Click currently = turnAround.)
+2. **Click the octo → popup panel** (click, not hover; Saud 2026-11-21, replaces the spec's
+   always-visible HUD and the old "future upgrade" note): CPU / GPU / RAM usage and temperature,
+   battery %, Bluetooth and Wi-Fi on/off, brightness slider, and **Claude Code token usage**
+   (5-hour session % and weekly %, with reset times).
+3. **Alert toasts** that pop up for a few seconds: token usage at 80 % (and 95 %), CPU/GPU too hot,
+   RAM nearly full.
+4. **Later, "beauty" pass:** the mood indicator (verb badge, emote sticker) moves into the popup so
+   the octo looks clean from outside. Rule from Saud: **make it alive first, then make it pretty.**
+
+Feasibility, checked 2026-11-21 on this laptop (no root needed for any of it):
+- Token usage: Claude Code 2.1.330 computes `five_hour` and `seven_day` `used_percentage` +
+  `resets_at` and `context_window.used_percentage` for its status line input. The status line is
+  already set to ponytail's script, so ours must **wrap it** (both keep working), not replace it.
+  Caveats: subscription logins only; the numbers refresh when Claude Code redraws its status line.
+- Brightness: KDE D-Bus (`org.kde.ScreenBrightness`, PowerDevil BrightnessControl). The sysfs
+  backlight is not writable without root, so not that.
+- Bluetooth: `bluetoothctl` (adapter powered). Wi-Fi: `nmcli`. Battery: `upower` / psutil.
+- GPU numbers only while the RTX 3050 is awake; when asleep the popup says so (reading it wakes it).
 
 ## Constraints
 - **No Plasma X11 session** on this laptop (it doesn't work, per Saud). The spec's "log into a Plasma
