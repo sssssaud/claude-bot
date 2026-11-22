@@ -1,5 +1,5 @@
-// The desktop overlay page (loaded by Electron): octo + badge + emote sticker.
-// Click the octo = turnAround (spec 3.4); drag = move the window; click the badge = simulator dock.
+// The desktop overlay page (loaded by Electron): octo + badge + emote sticker + popup panel (Phase 4).
+// Click the octo = turnAround + toggle popup panel; drag = move the window; click the badge = simulator dock.
 import model from '../voxels/octo.json';
 import { createCompanion } from './companion.js';
 
@@ -8,11 +8,13 @@ const canvas = document.querySelector('#octo');
 const companion = createCompanion({
   canvas, layer: document.querySelector('#layer'), model, orbit: false,
   onRegion: bridge.setRegion, onBadgeClick: bridge.toggleDock,
+  onControl: (type, val) => bridge.setControl(type, val),
 });
 const octo = companion.scene;
 window.__octo = octo; // dev handle for checks over the debug port; the page has no other API
+window.__companion = companion;
 
-// state comes from the main process (simulator now, bridge in Phase 4); the dock sends moves
+// state comes from the main process (simulator fallback, bridge in Phase 4); the dock sends moves
 bridge.onState(state => { window.__state = state; companion.update(state); }); // __state: dev handle
 bridge.onPlay(name => octo.play(name));
 
@@ -37,7 +39,10 @@ const release = e => {
     octo.setDragging(false); // squash bounce on drop
     bridge.drop();
   }
-  else if (e.type === 'pointerup') octo.play('turnAround');
+  else if (e.type === 'pointerup') {
+    octo.play('turnAround');
+    companion.togglePopup();
+  }
   press = null;
 };
 canvas.addEventListener('pointerup', release);

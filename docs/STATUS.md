@@ -6,10 +6,22 @@
 | 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
 | 2 Electron overlay | ✅ done 2026-11-20, hand-checked | Tag `phase-2-working`. |
 | 3 Badge + moods + dock (fake data) | ✅ done 2026-11-20 (3a moods/face/badge · 3b dock · 3c moves, particles, gaze) | Tag `phase-3-working`. |
-| 4 Bridge + RGB | ⏳ next: plan needs Saud's OK | Tier 1 OpenRGB SDK is viable (see HARDWARE.md); also the real terminal position for the gaze (KWin script) |
-| 5 Telemetry HUD | — | Never `lspci` in the poll loop (it wakes the dGPU) |
+| 4 Bridge + Stats Popup + Controls | 🔨 4a done 2026-11-22 | Python aiohttp bridge on 127.0.0.1:8765, real telemetry (<0.9% CPU, dGPU safe check), click octo → popup with live stats, BT/Wi-Fi/brightness toggles, alert toasts. Next: 4b RGB keyboard & terminal position via KWin |
+| 5 Telemetry HUD | — | Merged into popup per Saud's 2026-11-21 plan |
 | 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
+
+## Phase 4a: Python Bridge with real data, popup panel, quick controls (2026-11-22)
+
+- `bridge/`: lightweight Python service (`aiohttp` on `127.0.0.1:8765`, WebSocket `/ws` @ 10 Hz state, @ 1 Hz telemetry; strictly rejects non-local origins).
+- **Safe dGPU polling**: Reads `/sys/bus/pci/devices/0000:01:00.0/power/runtime_status` directly. If `suspended`, reports `asleep` (zZ) and touches NVML never. Only queries NVML when `active`. Tested: dGPU stays suspended throughout.
+- **Direct sysfs telemetry (<0.9% CPU)**: Autodiscovers direct hwmon paths on startup (`coretemp` `temp1_input`, `alienware_wmi` `fan1_input`/`fan2_input`), eliminating slow 48 ms hwmon sweeps down to <0.9% single-core CPU.
+- **Controls**: Bluetooth power read/set via `bluetoothctl`, Wi-Fi read/set via `nmcli`, display brightness read/set via KDE D-Bus (`org.kde.Solid.PowerManagement`).
+- **Stats & Controls Popup**: Clicking the octo toggles a glass popup panel (CPU % & temp, RAM % & GB, GPU status/watts, Battery %, Fan RPM, BT/Wi-Fi toggles, brightness slider, Claude Code token stats placeholder).
+- **X11 Input Shape for Popup**: Dynamically adds popup box to `octo:region` `extras` so clicks on the popup register while the rest of the window remains transparent and click-through.
+- **Alert Toasts**: Floating notification toasts with 60s cooldown for high temperatures (CPU ≥ 90 °C, GPU ≥ 83 °C) or memory exhaustion (RAM ≥ 90 %).
+- **Bridge fallback**: Electron main connects to `ws://127.0.0.1:8765/ws`; if bridge is offline, transparently falls back to internal simulator and shows offline status dot in popup.
+- Tests: 11 pytest bridge tests pass; 24 node tests pass; `test_clean_emotes` passes (35 total tests).
 
 ## Phase 3c: the rest of the moves, particles, gaze (2026-11-20)
 

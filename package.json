@@ -5,8 +5,11 @@
   "scripts": {
     "dev:web": "vite",
     "test": "node --test 'ui/**/*.test.mjs' 'app/**/*.test.mjs'",
+    "test:bridge": ".venv/bin/pytest bridge/tests",
+    "test:all": "npm test && npm run test:bridge && .venv/bin/python tools/test_clean_emotes.py",
     "build": "vite build",
-    "app": "vite build && electron ."
+    "app": "vite build && electron .",
+    "bridge": ".venv/bin/python -m bridge.server"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",

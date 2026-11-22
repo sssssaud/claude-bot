@@ -11,8 +11,8 @@ import { createSimulator } from '../ui/mood/mood.js';
 import { MOVES } from '../ui/scene3d/moves.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const SIZE = { width: 640, height: 360 }; // room for a jump, a roll and the badge; empty space is click-through
-const NOMINAL_OCTO = { x: 232, y: 136, width: 176, height: 168 }; // octo box at rest, until the page reports it
+const SIZE = { width: 680, height: 440 }; // room for a jump, a roll, the badge, and popup panel
+const NOMINAL_OCTO = { x: 252, y: 156, width: 176, height: 168 }; // octo box at rest, until the page reports it
 const MOVE_NAMES = ['idle', 'blink', ...Object.keys(MOVES)];
 const MASTI_KEY = 'Control+Shift+M';
 
@@ -134,14 +134,78 @@ function settle() {
 // ---- simulator state, shared by the overlay and the dock (10 Hz) ----
 const sim = createSimulator();
 const clock = () => performance.now() / 1000;
-let temps = { cpu: 55, gpu: 50 }; // fake °C from the dock's telemetry override
+let temps = { cpu: 55, gpu: 50 }; // fake °C from the dock's telemetry override or real from bridge
 let picked = null; // { emote, until }: an emote chosen in the dock
 let look = null; // { fx, fy }: where the terminal is, as fractions of the screen (fake now; the bridge finds it in Phase 4)
-setInterval(() => {
-  const now = clock();
-  const state = { ...sim.state(now), temps, look, emote: picked && now < picked.until ? picked.emote : null };
+
+// ---- Bridge WebSocket client (Phase 4) ----
+let bridgeWs = null;
+let bridgeConnected = false;
+let bridgeTelemetry = null;
+let bridgeControls = null;
+
+function forwardState(state) {
   win?.webContents.send('sim:state', state);
   if (dock?.isVisible()) dock.webContents.send('sim:state', state);
+}
+
+function connectBridge() {
+  if (quitting) return;
+  try {
+    bridgeWs = new WebSocket('ws://127.0.0.1:8765/ws');
+    bridgeWs.onopen = () => {
+      bridgeConnected = true;
+    };
+    bridgeWs.onmessage = event => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'init') {
+          bridgeConnected = true;
+          if (msg.telemetry) bridgeTelemetry = msg.telemetry;
+          if (msg.controls) bridgeControls = msg.controls;
+          if (msg.state) forwardState({ ...msg.state, telemetry: bridgeTelemetry, controls: bridgeControls, bridge: true });
+        } else if (msg.type === 'state') {
+          forwardState({ ...msg.data, telemetry: bridgeTelemetry, controls: bridgeControls, bridge: true });
+        } else if (msg.type === 'telemetry') {
+          bridgeTelemetry = msg.data;
+          if (msg.data?.cpu?.temp) temps.cpu = msg.data.cpu.temp;
+          if (msg.data?.gpu?.temp) temps.gpu = msg.data.gpu.temp;
+          forwardState({ ...sim.state(clock()), temps, look, bridge: true, telemetry: bridgeTelemetry, controls: bridgeControls });
+        } else if (msg.type === 'controls') {
+          bridgeControls = msg.data;
+          forwardState({ ...sim.state(clock()), temps, look, bridge: true, telemetry: bridgeTelemetry, controls: bridgeControls });
+        }
+      } catch (err) {}
+    };
+    bridgeWs.onclose = () => {
+      bridgeConnected = false;
+      bridgeWs = null;
+      if (!quitting) setTimeout(connectBridge, 2000);
+    };
+    bridgeWs.onerror = () => {
+      bridgeConnected = false;
+      try { bridgeWs?.close(); } catch {}
+    };
+  } catch (err) {
+    bridgeConnected = false;
+    if (!quitting) setTimeout(connectBridge, 2000);
+  }
+}
+
+setInterval(() => {
+  if (!bridgeConnected) {
+    const now = clock();
+    const state = {
+      ...sim.state(now),
+      temps,
+      look,
+      emote: picked && now < picked.until ? picked.emote : null,
+      bridge: false,
+      telemetry: bridgeTelemetry,
+      controls: bridgeControls,
+    };
+    forwardState(state);
+  }
 }, 100);
 
 // ---- IPC: every message is checked for its sender and its values ----
@@ -155,7 +219,7 @@ const pick = r => ({ x: r.x, y: r.y, width: r.width, height: r.height });
 
 ipcMain.on('octo:region', (e, region) => {
   if (!fromOverlay(e) || !isRect(region?.octo)) return;
-  const extras = Array.isArray(region.extras) ? region.extras.slice(0, 3) : [];
+  const extras = Array.isArray(region.extras) ? region.extras.slice(0, 5) : [];
   if (!extras.every(isRect)) return;
   const first = octo === NOMINAL_OCTO;
   octo = pick(region.octo);
@@ -169,17 +233,55 @@ ipcMain.on('octo:move', (e, x, y) => {
 ipcMain.on('octo:drop', e => { if (fromOverlay(e)) settle(); });
 ipcMain.on('dock:toggle', e => { if (fromOverlay(e)) toggleDock(); });
 
-ipcMain.on('sim:pressure', (e, v) => { if (fromDock(e) && isNum(v, 0, 100)) sim.setPressure(v, clock()); });
-ipcMain.on('sim:masti', e => { if (fromDock(e)) sim.toggleMasti(clock()); });
+ipcMain.on('sim:pressure', (e, v) => {
+  if (fromDock(e) && isNum(v, 0, 100)) {
+    sim.setPressure(v, clock());
+    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
+      bridgeWs.send(JSON.stringify({ cmd: 'pressure', value: v }));
+    }
+  }
+});
+ipcMain.on('sim:masti', e => {
+  if (fromDock(e)) {
+    sim.toggleMasti(clock());
+    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
+      bridgeWs.send(JSON.stringify({ cmd: 'masti' }));
+    }
+  }
+});
 ipcMain.on('sim:demo', (e, on) => { if (fromDock(e) && typeof on === 'boolean') sim.setDemo(on, clock()); });
 ipcMain.on('sim:temps', (e, t) => {
   if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110)) temps = { cpu: t.cpu, gpu: t.gpu };
 });
 ipcMain.on('sim:emote', (e, name) => {
-  if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) picked = { emote: name, until: clock() + 6 };
+  if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) {
+    picked = { emote: name, until: clock() + 6 };
+    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
+      bridgeWs.send(JSON.stringify({ cmd: 'emote', name, duration: 6 }));
+    }
+  }
 });
 ipcMain.on('sim:look', (e, l) => {
-  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) look = l && { fx: l.fx, fy: l.fy };
+  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) {
+    look = l && { fx: l.fx, fy: l.fy };
+    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
+      bridgeWs.send(JSON.stringify({ cmd: 'look', fx: l?.fx, fy: l?.fy }));
+    }
+  }
+});
+ipcMain.on('controls:set', (e, type, val) => {
+  if (!fromOverlay(e) && !fromDock(e)) return;
+  const endpoint = type === 'bluetooth' ? 'http://127.0.0.1:8765/controls/bluetooth'
+    : type === 'wifi' ? 'http://127.0.0.1:8765/controls/wifi'
+    : type === 'brightness' ? 'http://127.0.0.1:8765/controls/brightness'
+    : null;
+  if (!endpoint) return;
+  const body = type === 'brightness' ? { percent: val } : { enabled: Boolean(val) };
+  fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).catch(() => {});
 });
 ipcMain.on('octo:play', (e, name) => {
   if (fromDock(e) && MOVE_NAMES.includes(name)) win?.webContents.send('octo:play', name);
@@ -188,6 +290,7 @@ ipcMain.handle('dock:moves', e => (fromDock(e) ? MOVE_NAMES : []));
 
 app.whenReady().then(() => {
   createWindow();
+  connectBridge();
   for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, () => win && settle());
   // Under XWayland this only fires while an X11 window has focus; the bridge's POST /masti
   // (Phase 4) is the fallback for a KDE custom shortcut.

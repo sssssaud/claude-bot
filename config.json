@@ -1,0 +1,9 @@
+{
+  "thresholds": {
+    "cpu_temp_alert": 90,
+    "gpu_temp_alert": 83,
+    "ram_percent_alert": 90,
+    "tokens_warning_percent": 80,
+    "tokens_critical_percent": 95
+  }
+}
