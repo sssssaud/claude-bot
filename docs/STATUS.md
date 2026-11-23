@@ -11,6 +11,21 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
 
+## Emotes on the big octo; sticker removed (Claude, 2026-11-23, `66c17f6`)
+
+Saud: the small 2D sticker didn't match the big 3D octo, so all emotes now live on the octo itself.
+- `EXPRESSIONS` in `ui/mood/mood.js`: each of the 48 emotes → eyes + mouth + extras (blush, tears,
+  sweat, anger) + voxel props + particles. 18 props in `voxels/octo.json` (`prop.*`: sunglasses,
+  glasses, VR visor, headband, ninja band, headphones, horns, halo, bulb, party/santa/wizard/chef/straw
+  hat, sprout, antennae, mug, laptop); 6 new particles (music notes, ?, !, thinking dots, rain, snow).
+- Order on the octo: dock pick / Claude Code reaction > hello, healing > temperature > the mood's pool
+  (5 s every 8–15 s) > the mood's own face. While an expression shows, its particles replace the mood's.
+- Test: every one of the 48 emotes uses only parts and particles that exist, and every prop is used.
+- Checked by screenshots of 24 expressions (sample: `docs/img/expressions.png`); fixed what they showed:
+  black glasses merged with the black eyes into blocks (now grey frames), white snow under the white
+  outline became blobs (now drawn after the outline pass), zZz floating next to angry/cool faces.
+- Test page: `npm run dev:web` then `http://127.0.0.1:5173/?emote=40_devil` holds one expression.
+
 ## Claude Code → live mood + token usage (Claude, 2026-11-23)
 
 - `bridge/activity.py` (pure, 8 tests): hook events → pressure (Edit/Write 3, Bash 2, Read/Grep/Glob
