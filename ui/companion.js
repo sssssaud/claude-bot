@@ -46,7 +46,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
         <button class="ctrl-chip pop-btn-wifi" title="Toggle Wi-Fi">Wi-Fi: --</button>
         <div class="ctrl-slider-wrap">
           <span class="icon">☼</span>
-          <input type="range" class="ctrl-slider pop-bright-slider" min="0" max="100" value="40" title="Brightness">
+          <input type="range" class="ctrl-slider pop-bright-slider" min="5" max="100" value="40" aria-label="Brightness">
           <span class="pop-sub pop-bright-val">40%</span>
         </div>
       </div>
@@ -114,8 +114,14 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   function togglePopup(force) {
     popupOpen = typeof force === 'boolean' ? force : !popupOpen;
     popup.style.display = popupOpen ? 'block' : 'none';
+    layer.classList.toggle('popup-open', popupOpen);
+    if (popupOpen) renderPopup(state);
     place();
   }
+
+  // Write text only when it changed: unconditional writes at 10 Hz cost CPU (measured in Phase 3a).
+  const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+  const onOff = (v, name) => (v === null || v === undefined ? `${name}: ?` : `${name}: ${v ? 'ON' : 'OFF'}`);
 
   // Alert toast system (cooldown: 60s per alert)
   const lastAlertTimes = { cpu: 0, gpu: 0, ram: 0, token: 0 };
@@ -236,7 +242,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     if (!octo || !onRegion) return;
     const extras = [];
     const a = anchors.get(badge);
-    if (onBadgeClick && a) extras.push(snapBox(a.x, a.y, badge.offsetWidth, badge.offsetHeight));
+    if (onBadgeClick && a && !popupOpen) extras.push(snapBox(a.x, a.y, badge.offsetWidth, badge.offsetHeight));
     if (popupOpen) {
       const pa = anchors.get(popup);
       if (pa) extras.push(snapBox(pa.x, pa.y, popup.offsetWidth, popup.offsetHeight));
@@ -267,69 +273,55 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
   function update(next) {
     state = next;
-    // Update telemetry in popup
-    if (next.telemetry) {
-      const t = next.telemetry;
-      if (t.cpu) {
-        cpuVal.textContent = `${Math.round(t.cpu.usage)}%`;
-        cpuTemp.textContent = t.cpu.temp !== null ? `${Math.round(t.cpu.temp)}°C` : '--°C';
-      }
-      if (t.ram) {
-        ramVal.textContent = `${Math.round(t.ram.percent)}%`;
-        ramGb.textContent = `${t.ram.used_gb}/${Math.round(t.ram.total_gb)}G`;
-      }
-      if (t.gpu) {
-        if (!t.gpu.awake) {
-          gpuVal.textContent = 'asleep (zZ)';
-          gpuExtra.textContent = '';
-        } else {
-          gpuVal.textContent = `${t.gpu.usage}% ${t.gpu.temp ?? ''}°C`;
-          gpuExtra.textContent = `${t.gpu.power_w}W`;
-        }
-      }
-      if (t.battery) {
-        batVal.textContent = `${Math.round(t.battery.percent)}%${t.battery.plugged ? ' ⚡' : ''}`;
-      }
-      if (t.fans) {
-        const rpm = t.fans.cpu_rpm || t.fans.gpu_rpm || 0;
-        fanVal.textContent = `${rpm} rpm`;
-      }
+    checkAlerts(next.telemetry);
+    if (popupOpen) renderPopup(next);
+  }
 
-      // Check alert thresholds
-      const nowMs = Date.now();
-      if (t.cpu?.temp >= 90 && nowMs - lastAlertTimes.cpu > 60000) {
-        lastAlertTimes.cpu = nowMs;
-        triggerToast(`🔥 CPU hot: ${Math.round(t.cpu.temp)}°C`);
-      } else if (t.gpu?.awake && t.gpu?.temp >= 83 && nowMs - lastAlertTimes.gpu > 60000) {
-        lastAlertTimes.gpu = nowMs;
-        triggerToast(`🔥 GPU hot: ${Math.round(t.gpu.temp)}°C`);
-      } else if (t.ram?.percent >= 90 && nowMs - lastAlertTimes.ram > 60000) {
-        lastAlertTimes.ram = nowMs;
-        triggerToast(`⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
+  function renderPopup({ telemetry: t, controls: c, bridge }) {
+    bridgeDot.classList.toggle('online', Boolean(bridge));
+    if (t) {
+      setText(cpuVal, `${Math.round(t.cpu?.usage ?? 0)}%`);
+      setText(cpuTemp, t.cpu?.temp != null ? `${Math.round(t.cpu.temp)}°C` : '--°C');
+      setText(ramVal, `${Math.round(t.ram?.percent ?? 0)}%`);
+      setText(ramGb, `${t.ram?.used_gb ?? '--'}/${Math.round(t.ram?.total_gb ?? 0)}G`);
+      if (!t.gpu?.awake) {
+        setText(gpuVal, t.gpu?.available === false ? 'not found' : 'asleep (zZ)');
+        setText(gpuExtra, '');
+      } else {
+        setText(gpuVal, `${t.gpu.usage}% ${t.gpu.temp ?? '--'}°C`);
+        setText(gpuExtra, `${t.gpu.power_w}W`);
       }
+      setText(batVal, `${Math.round(t.battery?.percent ?? 0)}%${t.battery?.plugged ? ' ⚡' : ''}`);
+      setText(fanVal, `${t.fans?.cpu_rpm || t.fans?.gpu_rpm || 0} rpm`);
     }
+    // controls: null = couldn't be read (shown as ?, button disabled), never a guessed value
+    currentBt = c?.bluetooth;
+    currentWifi = c?.wifi;
+    setText(btnBt, onOff(currentBt, 'BT'));
+    setText(btnWifi, onOff(currentWifi, 'Wi-Fi'));
+    btnBt.disabled = typeof currentBt !== 'boolean';
+    btnWifi.disabled = typeof currentWifi !== 'boolean';
+    btnBt.classList.toggle('active', currentBt === true);
+    btnWifi.classList.toggle('active', currentWifi === true);
+    brightSlider.disabled = !c?.brightness;
+    if (c?.brightness && !slidingBrightness) {
+      brightSlider.value = c.brightness.percent;
+      setText(brightVal, `${c.brightness.percent}%`);
+    } else if (!c?.brightness) setText(brightVal, '?');
+  }
 
-    // Update controls in popup
-    if (next.controls) {
-      const c = next.controls;
-      if (typeof c.bluetooth === 'boolean') {
-        currentBt = c.bluetooth;
-        btnBt.textContent = `BT: ${c.bluetooth ? 'ON' : 'OFF'}`;
-        btnBt.classList.toggle('active', c.bluetooth);
-      }
-      if (typeof c.wifi === 'boolean') {
-        currentWifi = c.wifi;
-        btnWifi.textContent = `Wi-Fi: ${c.wifi ? 'ON' : 'OFF'}`;
-        btnWifi.classList.toggle('active', c.wifi);
-      }
-      if (c.brightness && !slidingBrightness) {
-        brightSlider.value = c.brightness.percent;
-        brightVal.textContent = `${c.brightness.percent}%`;
-      }
-    }
-
-    // Update bridge status indicator
-    bridgeDot.classList.toggle('online', Boolean(next.bridge));
+  // Alert toasts, at most one per kind per minute (thresholds move to config in the token step)
+  function checkAlerts(t) {
+    if (!t) return;
+    const nowMs = Date.now();
+    const fire = (kind, text) => {
+      if (nowMs - lastAlertTimes[kind] < 60000) return;
+      lastAlertTimes[kind] = nowMs;
+      triggerToast(text);
+    };
+    if (t.cpu?.temp >= 90) fire('cpu', `🔥 CPU hot: ${Math.round(t.cpu.temp)}°C`);
+    else if (t.gpu?.awake && t.gpu?.temp >= 83) fire('gpu', `🔥 GPU hot: ${Math.round(t.gpu.temp)}°C`);
+    else if (t.ram?.percent >= 90) fire('ram', `⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
   }
 
   function apply({ p, masti, temps, look, sleepy, emote: picked }, now) {
@@ -430,5 +422,5 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     }
   }
 
-  return { update, scene, mood: () => mood, togglePopup };
+  return { update, scene, mood: () => mood, togglePopup, notify: triggerToast };
 }

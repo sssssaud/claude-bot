@@ -11,6 +11,32 @@
 | 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
 
+## Phase 4a review fixes (Claude, 2026-11-23)
+
+agy built 4a (`99d4710`); reviewed against HANDOVER.md before continuing. Found and fixed:
+- **Security:** `Origin: null` (any web page via a sandboxed iframe) was accepted, so a website
+  could switch Wi-Fi/Bluetooth off. Now: browser Origins only from http(s)://127.0.0.1|localhost,
+  Host header must be local (DNS rebinding). Electron and Node send no Origin (measured), so the app
+  is unaffected. Test fails if the hole is reopened (mutation-checked).
+- **Validation:** `{"enabled": "false"}` turned Bluetooth ON; `NaN` pressure became 100; emote names
+  and durations unchecked. One validator per value type, HTTP 400 with a message.
+- **Freezes:** bluetoothctl/nmcli/qdbus ran on the event loop (up to 2 s each). Now in a thread; the
+  controls are re-read every 10 s so changes made in KDE show up.
+- **Mood flicker:** a second mood engine in Python (`bridge/state.py`) ran its own idle clock; the
+  1 Hz telemetry messages re-sent Electron's state, so the two fought. Removed it: Electron's
+  simulator is the only mood source; the bridge sends commands (`/masti`, `/pressure`, `/look`,
+  `/emote` → `{"type": "cmd"}`). Checked: 20 samples over 4 s, one state.
+- **Honest controls:** a failed read showed made-up values (brightness 40 %); now `null` → popup
+  shows `?` and disables the control. Popup control values validated in main.js; failures shown as
+  a toast instead of being swallowed. Brightness minimum 5 % (0 can black out the panel).
+- **Popup:** solid background (92 % alpha + backdrop blur let desktop text bleed through), badge and
+  emote sticker hidden while it's open (they overlapped it), DOM written only while open and only
+  when a value changed, Wi-Fi chip no longer wraps.
+- Dock's fake temperatures win for 60 s after the last slider move, then real temps return.
+- Checked live: mock bridge + app over DevTools: popup BT toggle and brightness reach the bridge,
+  `/masti` and `/pressure` from curl reach the octo, null origin → 403, dGPU asleep.
+- Tests: 24 node + 10 bridge + sprite self-check.
+
 ## Phase 4a: Python Bridge with real data, popup panel, quick controls (2026-11-22)
 
 - `bridge/`: lightweight Python service (`aiohttp` on `127.0.0.1:8765`, WebSocket `/ws` @ 10 Hz state, @ 1 Hz telemetry; strictly rejects non-local origins).

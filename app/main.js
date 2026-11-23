@@ -131,82 +131,102 @@ function settle() {
   }
 }
 
-// ---- simulator state, shared by the overlay and the dock (10 Hz) ----
+// ---- mood state: ONE simulator here (ui/mood/mood.js), sent to the overlay and the dock at 10 Hz.
+// The bridge adds real telemetry and controls, and sends commands (masti, pressure, look, emote)
+// that are applied to this simulator. (A second mood engine in the bridge drifted and made the
+// mood flicker once a second; removed 2026-11-23.)
 const sim = createSimulator();
 const clock = () => performance.now() / 1000;
-let temps = { cpu: 55, gpu: 50 }; // fake °C from the dock's telemetry override or real from bridge
-let picked = null; // { emote, until }: an emote chosen in the dock
-let look = null; // { fx, fy }: where the terminal is, as fractions of the screen (fake now; the bridge finds it in Phase 4)
+const TEMPS_OVERRIDE_S = 60; // the dock's fake temperatures win for a minute after the last slider move
+let fakeTemps = { cpu: 55, gpu: 50 };
+let fakeTempsUntil = -Infinity;
+let picked = null; // { emote, until }: an emote chosen in the dock or sent by the bridge
+let look = null; // { fx, fy }: where the terminal is, as fractions of the screen
+const bridge = { ws: null, connected: false, telemetry: null, controls: null };
+const BRIDGE = 'http://127.0.0.1:8765';
 
-// ---- Bridge WebSocket client (Phase 4) ----
-let bridgeWs = null;
-let bridgeConnected = false;
-let bridgeTelemetry = null;
-let bridgeControls = null;
+function currentTemps(now) {
+  const t = bridge.telemetry;
+  if (now < fakeTempsUntil || !bridge.connected || !t) return fakeTemps;
+  return { cpu: t.cpu?.temp ?? null, gpu: t.gpu?.awake ? t.gpu.temp : null }; // asleep GPU: no reading
+}
 
-function forwardState(state) {
+setInterval(() => {
+  const now = clock();
+  const state = {
+    ...sim.state(now),
+    temps: currentTemps(now),
+    look,
+    emote: picked && now < picked.until ? picked.emote : null,
+    bridge: bridge.connected,
+    telemetry: bridge.telemetry,
+    controls: bridge.controls,
+  };
   win?.webContents.send('sim:state', state);
   if (dock?.isVisible()) dock.webContents.send('sim:state', state);
+}, 100);
+
+const notify = text => win?.webContents.send('octo:notice', text);
+
+// Commands from the bridge (KDE shortcut, Claude Code hooks): the bridge validates them; check again.
+function applyCommand(m) {
+  const now = clock();
+  if (m.cmd === 'masti') sim.toggleMasti(now);
+  else if (m.cmd === 'pressure' && isNum(m.value, 0, 100)) sim.setPressure(m.value, now);
+  else if (m.cmd === 'look' && (m.look === null || (isNum(m.look?.fx, 0, 1) && isNum(m.look?.fy, 0, 1)))) look = m.look && { fx: m.look.fx, fy: m.look.fy };
+  else if (m.cmd === 'emote' && typeof m.name === 'string' && /^\d\d_[a-z_]+$/.test(m.name) && isNum(m.duration, 0.5, 30)) picked = { emote: m.name, until: now + m.duration };
+  else console.warn('bridge: ignored command', JSON.stringify(m).slice(0, 200));
 }
 
 function connectBridge() {
   if (quitting) return;
-  try {
-    bridgeWs = new WebSocket('ws://127.0.0.1:8765/ws');
-    bridgeWs.onopen = () => {
-      bridgeConnected = true;
-    };
-    bridgeWs.onmessage = event => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'init') {
-          bridgeConnected = true;
-          if (msg.telemetry) bridgeTelemetry = msg.telemetry;
-          if (msg.controls) bridgeControls = msg.controls;
-          if (msg.state) forwardState({ ...msg.state, telemetry: bridgeTelemetry, controls: bridgeControls, bridge: true });
-        } else if (msg.type === 'state') {
-          forwardState({ ...msg.data, telemetry: bridgeTelemetry, controls: bridgeControls, bridge: true });
-        } else if (msg.type === 'telemetry') {
-          bridgeTelemetry = msg.data;
-          if (msg.data?.cpu?.temp) temps.cpu = msg.data.cpu.temp;
-          if (msg.data?.gpu?.temp) temps.gpu = msg.data.gpu.temp;
-          forwardState({ ...sim.state(clock()), temps, look, bridge: true, telemetry: bridgeTelemetry, controls: bridgeControls });
-        } else if (msg.type === 'controls') {
-          bridgeControls = msg.data;
-          forwardState({ ...sim.state(clock()), temps, look, bridge: true, telemetry: bridgeTelemetry, controls: bridgeControls });
-        }
-      } catch (err) {}
-    };
-    bridgeWs.onclose = () => {
-      bridgeConnected = false;
-      bridgeWs = null;
-      if (!quitting) setTimeout(connectBridge, 2000);
-    };
-    bridgeWs.onerror = () => {
-      bridgeConnected = false;
-      try { bridgeWs?.close(); } catch {}
-    };
-  } catch (err) {
-    bridgeConnected = false;
+  const ws = new WebSocket(`${BRIDGE.replace('http', 'ws')}/ws`); // errors arrive as events, not throws
+  bridge.ws = ws;
+  ws.onopen = () => { bridge.connected = true; };
+  ws.onmessage = event => {
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch (err) {
+      console.warn('bridge: bad message', err.message);
+      return;
+    }
+    if (msg.type === 'init') {
+      bridge.telemetry = msg.telemetry ?? null;
+      bridge.controls = msg.controls ?? null;
+    } else if (msg.type === 'telemetry') bridge.telemetry = msg.data;
+    else if (msg.type === 'controls') bridge.controls = msg.data;
+    else if (msg.type === 'cmd') applyCommand(msg);
+  };
+  ws.onclose = () => { // bridge not running or restarted: keep the simulator going, retry
+    bridge.connected = false;
+    bridge.ws = null;
     if (!quitting) setTimeout(connectBridge, 2000);
-  }
+  };
 }
 
-setInterval(() => {
-  if (!bridgeConnected) {
-    const now = clock();
-    const state = {
-      ...sim.state(now),
-      temps,
-      look,
-      emote: picked && now < picked.until ? picked.emote : null,
-      bridge: false,
-      telemetry: bridgeTelemetry,
-      controls: bridgeControls,
-    };
-    forwardState(state);
+// Quick controls from the popup: checked here, applied by the bridge, failures shown as a toast.
+const CONTROLS = {
+  bluetooth: v => typeof v === 'boolean' && { enabled: v },
+  wifi: v => typeof v === 'boolean' && { enabled: v },
+  brightness: v => isInt(v, 5, 100) && { percent: v },
+};
+async function setControl(type, value) {
+  const payload = CONTROLS[type]?.(value);
+  if (!payload) return;
+  if (!bridge.connected) return notify('Bridge offline: start it with ./run.sh');
+  try {
+    const res = await fetch(`${BRIDGE}/controls/${type}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
+    bridge.controls = await res.json();
+  } catch (err) {
+    console.error(`control ${type} failed:`, err.message);
+    notify(`Couldn't change ${type}`);
   }
-}, 100);
+}
 
 // ---- IPC: every message is checked for its sender and its values ----
 const fromOverlay = e => e.sender === win?.webContents;
@@ -233,55 +253,23 @@ ipcMain.on('octo:move', (e, x, y) => {
 ipcMain.on('octo:drop', e => { if (fromOverlay(e)) settle(); });
 ipcMain.on('dock:toggle', e => { if (fromOverlay(e)) toggleDock(); });
 
-ipcMain.on('sim:pressure', (e, v) => {
-  if (fromDock(e) && isNum(v, 0, 100)) {
-    sim.setPressure(v, clock());
-    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
-      bridgeWs.send(JSON.stringify({ cmd: 'pressure', value: v }));
-    }
-  }
-});
-ipcMain.on('sim:masti', e => {
-  if (fromDock(e)) {
-    sim.toggleMasti(clock());
-    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
-      bridgeWs.send(JSON.stringify({ cmd: 'masti' }));
-    }
-  }
-});
+ipcMain.on('sim:pressure', (e, v) => { if (fromDock(e) && isNum(v, 0, 100)) sim.setPressure(v, clock()); });
+ipcMain.on('sim:masti', e => { if (fromDock(e)) sim.toggleMasti(clock()); });
 ipcMain.on('sim:demo', (e, on) => { if (fromDock(e) && typeof on === 'boolean') sim.setDemo(on, clock()); });
 ipcMain.on('sim:temps', (e, t) => {
-  if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110)) temps = { cpu: t.cpu, gpu: t.gpu };
+  if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110)) {
+    fakeTemps = { cpu: t.cpu, gpu: t.gpu };
+    fakeTempsUntil = clock() + TEMPS_OVERRIDE_S;
+  }
 });
 ipcMain.on('sim:emote', (e, name) => {
-  if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) {
-    picked = { emote: name, until: clock() + 6 };
-    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
-      bridgeWs.send(JSON.stringify({ cmd: 'emote', name, duration: 6 }));
-    }
-  }
+  if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) picked = { emote: name, until: clock() + 6 };
 });
 ipcMain.on('sim:look', (e, l) => {
-  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) {
-    look = l && { fx: l.fx, fy: l.fy };
-    if (bridgeConnected && bridgeWs?.readyState === WebSocket.OPEN) {
-      bridgeWs.send(JSON.stringify({ cmd: 'look', fx: l?.fx, fy: l?.fy }));
-    }
-  }
+  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) look = l && { fx: l.fx, fy: l.fy };
 });
-ipcMain.on('controls:set', (e, type, val) => {
-  if (!fromOverlay(e) && !fromDock(e)) return;
-  const endpoint = type === 'bluetooth' ? 'http://127.0.0.1:8765/controls/bluetooth'
-    : type === 'wifi' ? 'http://127.0.0.1:8765/controls/wifi'
-    : type === 'brightness' ? 'http://127.0.0.1:8765/controls/brightness'
-    : null;
-  if (!endpoint) return;
-  const body = type === 'brightness' ? { percent: val } : { enabled: Boolean(val) };
-  fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).catch(() => {});
+ipcMain.on('controls:set', (e, type, value) => {
+  if (fromOverlay(e) || fromDock(e)) setControl(type, value);
 });
 ipcMain.on('octo:play', (e, name) => {
   if (fromDock(e) && MOVE_NAMES.includes(name)) win?.webContents.send('octo:play', name);

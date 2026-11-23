@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('octoBridge', {
   setControl: (type, val) => ipcRenderer.send('controls:set', type, val),
   onState: fn => ipcRenderer.on('sim:state', (_e, state) => fn(state)),
   onPlay: fn => ipcRenderer.on('octo:play', (_e, name) => fn(name)),
+  onNotice: fn => ipcRenderer.on('octo:notice', (_e, text) => fn(text)),
 });

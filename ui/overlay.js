@@ -17,6 +17,7 @@ window.__companion = companion;
 // state comes from the main process (simulator fallback, bridge in Phase 4); the dock sends moves
 bridge.onState(state => { window.__state = state; companion.update(state); }); // __state: dev handle
 bridge.onPlay(name => octo.play(name));
+bridge.onNotice(text => companion.notify(text)); // e.g. a quick control failed
 
 const DRAG_PX = 4; // less movement than this between press and release is a click
 let press = null;
