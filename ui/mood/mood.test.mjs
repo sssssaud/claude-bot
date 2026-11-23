@@ -1,9 +1,10 @@
 // npm test: mood thresholds, verbs, colours, demo loop, auto-masti.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { PARTICLE_KINDS } from '../scene3d/particles.js';
 import {
-  moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE,
+  moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
   demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER,
 } from './mood.js';
 
@@ -92,4 +93,20 @@ test('simulator: live feed changes the mood without cancelling masti or the slee
   sim.setDemo(true, 402);
   sim.feed(99);
   assert.ok(sim.state(403).p < 99, 'auto-demo wins over live data');
+});
+
+test('every one of the 48 emotes is an expression made only of parts and particles that exist', () => {
+  const names = readdirSync(new URL('../../assets/emotes-clean/', import.meta.url)).filter(f => /^\d\d_.*\.png$/.test(f)).map(f => f.slice(0, -4));
+  assert.equal(names.length, 48);
+  assert.deepEqual(Object.keys(EXPRESSIONS).sort(), names.sort());
+  const parts = new Set(Object.keys(JSON.parse(readFileSync(new URL('../../voxels/octo.json', import.meta.url))).parts));
+  for (const [name, x] of Object.entries(EXPRESSIONS)) {
+    assert.ok(parts.has(`eyes.${x.eyes}`), `${name}: eyes.${x.eyes}`);
+    assert.ok(x.mouth === 'none' || parts.has(`mouth.${x.mouth}`), `${name}: mouth.${x.mouth}`);
+    for (const e of x.extras) assert.ok(parts.has(`extra.${e}`), `${name}: extra.${e}`);
+    for (const pr of x.props) assert.ok(parts.has(`prop.${pr}`), `${name}: prop.${pr}`);
+    for (const pa of x.particles) assert.ok(PARTICLE_KINDS.includes(pa), `${name}: particle ${pa}`);
+  }
+  const used = new Set(Object.values(EXPRESSIONS).flatMap(x => x.props));
+  for (const part of parts) if (part.startsWith('prop.')) assert.ok(used.has(part.slice(5)), `${part} is never used`);
 });

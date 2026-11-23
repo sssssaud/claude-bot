@@ -1,4 +1,4 @@
-// The on-screen companion: 3D octo + thinking-verb badge + emote sticker + stats popup (Phase 4),
+// The on-screen companion: 3D octo (emotes shown on it as expressions) + thinking-verb badge + stats popup,
 // driven by state from the simulator and the Python bridge.
 import '@fontsource/sora/latin-600.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
@@ -6,12 +6,9 @@ import './companion.css';
 import { createScene3D } from './scene3d/Scene3D.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, heatColor, ROSE, PINK, mix, rgba,
-  POSE, FACE, nextEmote, emoteInterval, tempEmote, gpuHot,
+  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, tempEmote, gpuHot,
 } from './mood/mood.js';
 
-const SPRITES = import.meta.glob('../assets/emotes-clean/[0-9][0-9]_*.png', { eager: true, query: '?url', import: 'default' });
-const spriteUrl = name => SPRITES[`../assets/emotes-clean/${name}.png`];
-const EMOTE_SCALE = 2;
 // same defaults as the bridge (bridge/server.py); config.json overrides them through the bridge
 const DEFAULT_LIMITS = { cpu_temp_alert: 90, gpu_temp_alert: 83, ram_percent_alert: 90, tokens_warning_percent: 80, tokens_critical_percent: 95 };
 const resetTime = secs => (Number.isFinite(secs)
@@ -20,7 +17,6 @@ const resetTime = secs => (Number.isFinite(secs)
 
 export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, onControl, ...sceneOptions }) {
   layer.insertAdjacentHTML('beforeend', `
-    <img class="emote" alt="" style="opacity:0">
     <div class="badge" role="status" aria-live="off">
       <svg class="star" viewBox="-10 -10 20 20" aria-hidden="true"><path d="M0,-8V8M-7,-4L7,4M-7,4L7,-4"/></svg>
       <span class="slot"></span><span class="pct">0%</span>
@@ -67,7 +63,6 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   const slot = badge.querySelector('.slot');
   const pct = badge.querySelector('.pct');
   const star = badge.querySelector('.star');
-  const emote = layer.querySelector('.emote');
   const popup = layer.querySelector('.popup');
   const toast = layer.querySelector('.toast');
 
@@ -168,7 +163,8 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   let pool = null;
   let verb = null;
   let verbAt = 0;
-  let emoteName = null;
+  let poolExpr = null; // last expression from the mood's pool
+  let poolUntil = 0;
   let emoteAt = 0;
   let faceTimer = 0;
   let faceKey = '';
@@ -195,20 +191,6 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     place();
   }
 
-  function setEmote(name) {
-    emoteName = name;
-    emote.style.opacity = '0';
-    setTimeout(() => {
-      emote.onload = () => {
-        emote.style.width = `${emote.naturalWidth * EMOTE_SCALE}px`;
-        place();
-        emote.style.opacity = '1';
-      };
-      emote.src = spriteUrl(name);
-      emote.alt = name.slice(3).replace(/_/g, ' ');
-    }, 250);
-  }
-
   function place() {
     if (!octo) return;
     const bw = badge.offsetWidth;
@@ -221,11 +203,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     const by = Math.max(8, octo.y + octo.height * 0.12);
     moveTo(badge, bx, by);
 
-    const ew = emote.offsetWidth || 64;
-    const eh = emote.offsetHeight || 48;
-    const ex = flipped ? octo.x + octo.width - ew * 0.6 : octo.x - ew * 0.4;
-    const ey = Math.max(4, octo.y - eh * 0.55);
-    moveTo(emote, Math.max(4, ex), ey);
+
 
     if (popupOpen) {
       const pw = popup.offsetWidth || 250;
@@ -382,12 +360,24 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     }
     behave(m, temps, sleepy, now);
     aim(look);
-    setParticles(m, p, temps);
+    // expression on the octo: picked (dock, Claude Code reaction) > local (hello, healing) >
+    // temperature > the mood's pool (EXPRESSION_S every 8–15 s) > the mood's own face
+    if (local && now >= local.until) local = null;
+    let expr = picked ?? local?.emote ?? tempEmote(temps, m);
+    if (!expr && now >= emoteAt) {
+      poolExpr = nextEmote(m, poolExpr);
+      poolUntil = now + EXPRESSION_S;
+      emoteAt = now + emoteInterval();
+    }
+    if (!expr && now < poolUntil) expr = poolExpr;
+    const x = EXPRESSIONS[expr];
+    setParticles(m, p, temps, x?.particles);
+    const base = x ?? { ...FACE[m], props: [] };
     const hot = gpuHot(temps) ? ['sweat'] : [];
-    const key = m + hot.join();
+    const face = { eyes: base.eyes, mouth: base.mouth, extras: [...new Set([...base.extras, ...hot])], props: base.props };
+    const key = JSON.stringify(face);
     if (key !== faceKey) {
       faceKey = key;
-      const face = { ...FACE[m], extras: [...new Set([...FACE[m].extras, ...hot])] };
       clearTimeout(faceTimer);
       faceTimer = setTimeout(() => scene.setFace(face), moodChanged ? faceDelay : 0);
     }
@@ -396,15 +386,6 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       pool = vp;
       setVerb(nextVerb(vp, verb));
       verbAt = now + verbInterval(p);
-    }
-    if (local && now >= local.until) local = null;
-    const forced = picked ?? local?.emote ?? tempEmote(temps, m);
-    if (forced) {
-      if (forced !== emoteName) setEmote(forced);
-      emoteAt = 0;
-    } else if (now >= emoteAt) {
-      setEmote(nextEmote(m, emoteName));
-      emoteAt = now + emoteInterval();
     }
     const hc = m === 'masti' ? mix(ROSE, PINK, (Math.sin(now * 3) + 1) / 2) : heatColor(p);
     set('--hc', rgba(hc));
@@ -443,12 +424,16 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     scene.setLook(0.44 * nx, 0.9 * nx, -0.6 * ny);
   }
 
-  function setParticles(m, p, temps) {
+  function setParticles(m, p, temps, extra) {
     const want = {
       zzz: m === 'idle', glyphs: m === 'light', sparks: m === 'deep',
       sweat: m === 'overdrive' || gpuHot(temps), steam: m === 'overdrive', aura: m === 'overdrive',
       hearts: m === 'masti', sparkles: m === 'masti', embers: p > 80 && m !== 'masti',
     };
+    if (extra) { // an expression is showing: its particles replace the mood's (zZz next to an angry face read wrong)
+      for (const kind of ['zzz', 'glyphs', 'sparks', 'steam', 'hearts', 'sparkles']) want[kind] = false;
+      for (const kind of extra) want[kind] = true;
+    }
     const key = JSON.stringify(want);
     if (key !== particleKey) {
       particleKey = key;

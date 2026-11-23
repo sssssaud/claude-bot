@@ -1,6 +1,7 @@
 // Pixel-art particles in the octo's own WebGL pass (no extra compositor layers, and the sticker
 // outline pass gives them the same white border): zZz, { } and </> glyphs, sparks, sweat drops,
-// steam, hearts, sparkles, embers, plus the crimson aura ring (spec §3.5).
+// steam, hearts, sparkles, embers, music notes, ? and !, thinking dots, rain, snow, plus the
+// crimson aura ring (spec §3.5). Emotes are shown with these (the 2D sticker is gone).
 import * as THREE from 'three';
 
 const TAU = Math.PI * 2;
@@ -12,6 +13,11 @@ const BITMAPS = { // '#' = colour
   drop: ['.#.', '###', '###', '.#.'],
   dot: ['##', '##'],
   puff: ['.##.', '####', '####', '.##.'],
+  note: ['.###', '.#.#', '.#..', '##..', '##..'],
+  question: ['###', '..#', '.##', '...', '.#.'],
+  exclaim: ['##', '##', '##', '..', '##'],
+  dots: ['#.#.#'],
+  flake: ['#.#', '.#.', '#.#'],
 };
 // 3×5 pixel characters for the orbiting code glyphs. Hard-edged like every other particle:
 // anti-aliased text turned into fuzzy white blobs under the sticker outline pass (seen in 3c).
@@ -22,7 +28,9 @@ const CHARS = {
 };
 const glyphRows = label => CHARS['<'].map((_, y) => [...label].map(ch => CHARS[ch][y]).join('.'));
 // emissions per second and how each kind moves (positions in voxels around the octo's centre)
-const RATE = { zzz: 0.7, sparks: 5, sweat: 3, steam: 4, hearts: 1.8, sparkles: 3.5, embers: 6 };
+const RATE = { zzz: 0.7, sparks: 5, sweat: 3, steam: 4, hearts: 1.8, sparkles: 3.5, embers: 6,
+  notes: 1.6, question: 0.8, exclaim: 1.2, dots: 0.8, rain: 9, snow: 5 };
+export const PARTICLE_KINDS = [...Object.keys(RATE), 'glyphs', 'aura'];
 
 function bitmap(rows, colour) {
   const c = document.createElement('canvas');
@@ -49,6 +57,12 @@ export function createParticles(scene, flat, random = Math.random) {
     spark: bitmap(BITMAPS.dot, '#ffb347'),
     ember: bitmap(BITMAPS.dot, '#ff5a1f'),
     puff: bitmap(BITMAPS.puff, '#ffffff'),
+    note: bitmap(BITMAPS.note, '#ff5c8a'),
+    note2: bitmap(BITMAPS.note, '#b48cff'),
+    question: bitmap(BITMAPS.question, '#6f8cff'),
+    exclaim: bitmap(BITMAPS.exclaim, '#ff3b30'),
+    dots: bitmap(BITMAPS.dots, '#f4eae5'),
+    flake: bitmap(BITMAPS.flake, '#e8f4ff'),
   };
   const pool = Array.from({ length: MAX }, () => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
@@ -57,6 +71,13 @@ export function createParticles(scene, flat, random = Math.random) {
     return s;
   });
   const live = [];
+  // a few sprites drawn after the outline pass: white snow under a white sticker border became blobs
+  const flatPool = Array.from({ length: 24 }, () => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+    s.visible = false;
+    flat.add(s);
+    return s;
+  });
 
   // persistent bits: two orbiting code glyphs (light work) and the aura ring (overdrive)
   const glyphs = ['{ }', '</>'].map(label => {
@@ -74,19 +95,19 @@ export function createParticles(scene, flat, random = Math.random) {
 
   const acc = {};
   const rnd = (a, b) => a + (b - a) * random();
-  function spawn(map, x, y, vx, vy, life, size, gravity = 0, maxOpacity = 1) {
-    const s = pool.pop();
+  function spawn(map, x, y, vx, vy, life, size, gravity = 0, maxOpacity = 1, from = pool) {
+    const s = from.pop();
     if (!s) return; // pool full: skip, never allocate per frame
     s.material.map = map;
     s.material.opacity = maxOpacity;
     s.material.needsUpdate = true;
     s.position.set(x, y, 5); // in front of the body
-    s.scale.set(size, size, 1);
+    s.scale.set(size * map.image.width / map.image.height, size, 1); // keep the bitmap's shape
     s.visible = true;
-    live.push({ s, vx, vy, life, max: life, gravity, maxOpacity, wobble: rnd(0, TAU) });
+    live.push({ s, vx, vy, life, max: life, gravity, maxOpacity, wobble: rnd(0, TAU), home: from });
   }
 
-  // want: { zzz, glyphs, sparks, sweat, steam, aura, hearts, sparkles, embers }; c = octo centre
+  // want: { <kind>: true } for any of PARTICLE_KINDS; c = octo centre
   function update(dt, t, c, want) {
     const emit = (kind, fn) => {
       if (!want[kind]) { acc[kind] = 0; return; }
@@ -100,13 +121,19 @@ export function createParticles(scene, flat, random = Math.random) {
     emit('hearts', () => spawn(random() < 0.5 ? tex.heart : tex.heart2, c.x + rnd(-7, 7), c.y + rnd(-3, 4), rnd(-0.8, 0.8), rnd(2.6, 3.8), 2, rnd(1.4, 1.9)));
     emit('sparkles', () => { const a = rnd(0, TAU), r = rnd(8, 10.5); spawn(random() < 0.5 ? tex.sparkle : tex.sparkle2, c.x + Math.cos(a) * r, c.y + Math.sin(a) * r, 0, -0.8, 0.9, rnd(0.9, 1.3)); });
     emit('embers', () => spawn(tex.ember, c.x + rnd(-5, 5), c.y + 5, rnd(-1, 1), rnd(4, 7), 1.2, 0.45));
+    emit('notes', () => spawn(random() < 0.5 ? tex.note : tex.note2, c.x + rnd(-8, 8), c.y + rnd(2, 6), rnd(-0.8, 0.8), rnd(2, 3), 1.8, 1.4));
+    emit('question', () => spawn(tex.question, c.x + 7, c.y + 8, 0, 1.2, 1.6, 2.4));
+    emit('exclaim', () => spawn(tex.exclaim, c.x + 7, c.y + 8, 0, 1.5, 1, 1.8));
+    emit('dots', () => spawn(tex.dots, c.x + 6, c.y + 9, 0, 0.6, 1.4, 0.5));
+    emit('rain', () => spawn(tex.drop, c.x + rnd(-11, 11), c.y + 13, 0, -9, 1.3, 0.7, 4));
+    emit('snow', () => spawn(tex.flake, c.x + rnd(-12, 12), c.y + 13, rnd(-0.6, 0.6), -2.2, 3, 0.7, 0, 0.9, flatPool));
 
     for (let i = live.length - 1; i >= 0; i--) {
       const q = live[i];
       q.life -= dt;
       if (q.life <= 0) {
         q.s.visible = false;
-        pool.push(q.s);
+        q.home.push(q.s);
         live.splice(i, 1);
         continue;
       }

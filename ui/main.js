@@ -5,7 +5,10 @@ import { createSimulator, NAMES, moodOf } from './mood/mood.js';
 import { MOVES } from './scene3d/moves.js';
 
 // ?speed=0.1 plays every move in slow motion, to check timing frame by frame
-const speed = Number(new URLSearchParams(location.search).get('speed'));
+const params = new URLSearchParams(location.search);
+const speed = Number(params.get('speed'));
+// ?emote=04_cool holds one expression on the octo (to check props and faces)
+const heldEmote = /^\d\d_[a-z_]+$/.test(params.get('emote') ?? '') ? params.get('emote') : null;
 const companion = createCompanion({
   canvas: document.querySelector('#octo'),
   layer: document.querySelector('#layer'),
@@ -33,7 +36,7 @@ demo.addEventListener('change', () => sim.setDemo(demo.checked, now()));
 
 setInterval(() => {
   const s = sim.state(now());
-  companion.update(s);
+  companion.update({ ...s, emote: heldEmote });
   if (s.demo) pressure.value = Math.round(s.p);
   label.textContent = NAMES[moodOf(s.p, s.masti)];
 }, 100);

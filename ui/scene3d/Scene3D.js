@@ -102,13 +102,14 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
   const legs = Object.keys(groups).filter(n => n.startsWith('leg')).map(n => groups[n]);
 
   // Face: one eyes part, one mouth (or none), any extras. A blink closes whatever eyes are shown.
-  const faceParts = Object.keys(groups).filter(n => /^(eyes|mouth|extra)\./.test(n)).map(n => [n, ...n.split('.')]);
-  let face = { eyes: 'open', mouth: 'none', extras: [] };
+  const faceParts = Object.keys(groups).filter(n => /^(eyes|mouth|extra|prop)\./.test(n)).map(n => [n, ...n.split('.')]);
+  let face = { eyes: 'open', mouth: 'none', extras: [], props: [] };
   const eyeGroups = faceParts.filter(([, kind]) => kind === 'eyes').map(([n]) => [groups[n], groups[n].position.clone()]);
   function showFace(p) { // a move can override the eyes (dizzy, sleepy); a blink closes open eyes
     const eyes = p.eyes ?? (p.blink && !['sleepy', 'closed', 'dead', 'dizzy'].includes(face.eyes) ? 'closed' : face.eyes);
     for (const [n, kind, name] of faceParts) {
-      groups[n].visible = kind === 'eyes' ? name === eyes : kind === 'mouth' ? name === face.mouth : face.extras.includes(name);
+      groups[n].visible = kind === 'eyes' ? name === eyes : kind === 'mouth' ? name === face.mouth
+        : kind === 'prop' ? face.props.includes(name) : face.extras.includes(name);
     }
   }
 
@@ -247,6 +248,7 @@ export function createScene3D(canvas, model, { outline = true, speed = 1, orbit 
         eyes: has('eyes', f.eyes) ? f.eyes : 'open',
         mouth: has('mouth', f.mouth) ? f.mouth : 'none',
         extras: (f.extras ?? []).filter(x => has('extra', x)),
+        props: (f.props ?? []).filter(x => has('prop', x)),
       };
     },
     setOutline: on => (post.uniforms.on.value = on),

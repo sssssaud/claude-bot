@@ -61,6 +61,61 @@ export const EMOTES = {
   overdrive: ['11_angry', '18_strong', '19_lifting'],
   masti: ['02_love', '06_laughing', '04_cool', '03_hug_cat', '39_angel', '40_devil'],
 };
+// Every emote of the pack as an expression ON the 3D octo (Saud 2026-11-23: the small 2D sticker didn't
+// match the big octo, so it's gone): face decals + voxel props (octo.json prop.*) + particles.
+const E = (eyes, mouth, more = {}) => ({ eyes, mouth, extras: [], props: [], particles: [], ...more });
+export const EXPRESSIONS = {
+  '01_hello': E('open', 'smile', { particles: ['sparkles'] }),
+  '02_love': E('heart', 'smile', { extras: ['blush'], particles: ['hearts'] }),
+  '03_hug_cat': E('happy', 'smile', { extras: ['blush'], particles: ['hearts'] }),
+  '04_cool': E('open', 'smirk', { props: ['sunglasses'] }),
+  '05_crying': E('closed', 'o', { extras: ['tears'] }),
+  '06_laughing': E('happy', 'o', { extras: ['tears', 'blush'] }),
+  '07_surprised': E('open', 'o', { particles: ['exclaim'] }),
+  '08_confused': E('open', 'smirk', { particles: ['question'] }),
+  '09_thinking': E('open', 'none', { particles: ['dots'] }),
+  '10_idea': E('happy', 'smile', { props: ['bulb'] }),
+  '11_angry': E('angry', 'grit', { extras: ['anger'] }),
+  '12_music': E('closed', 'smile', { props: ['headphones'], particles: ['notes'] }),
+  '13_gaming': E('angry', 'smirk', { props: ['headphones'] }),
+  '14_coding': E('angry', 'none', { props: ['laptop'] }),
+  '15_studying': E('open', 'none', { props: ['glasses'], particles: ['dots'] }),
+  '16_reading': E('open', 'none', { props: ['glasses'] }),
+  '17_workout': E('angry', 'grit', { extras: ['sweat'], props: ['headband'] }),
+  '18_strong': E('happy', 'smirk', { extras: ['sweat'] }),
+  '19_lifting': E('angry', 'grit', { extras: ['sweat', 'anger'] }),
+  '20_cozy': E('sleepy', 'smile', { extras: ['blush'], particles: ['zzz'] }),
+  '21_sick': E('sleepy', 'o', { extras: ['sweat'] }),
+  '22_healing': E('happy', 'smile', { extras: ['blush'], particles: ['sparkles'] }),
+  '23_low_battery': E('sleepy', 'none'),
+  '24_full_battery': E('happy', 'smile', { particles: ['sparkles'] }),
+  '25_cooking': E('happy', 'smile', { props: ['chefhat'] }),
+  '26_boba': E('happy', 'o'),
+  '27_burger': E('happy', 'o'),
+  '28_chef': E('happy', 'smirk', { props: ['chefhat'] }),
+  '29_coffee': E('sleepy', 'smile', { props: ['mug'] }),
+  '30_raincoat': E('open', 'none', { particles: ['rain'] }),
+  '31_rainy': E('sleepy', 'none', { particles: ['rain'] }),
+  '32_snowy': E('closed', 'o', { extras: ['blush'], particles: ['snow'] }),
+  '33_astronaut': E('open', 'o', { particles: ['sparkles'] }),
+  '34_alien': E('open', 'smile', { props: ['antennae'] }),
+  '35_cardboard_box': E('open', 'none'),
+  '36_sprout': E('happy', 'smile', { props: ['sprout'] }),
+  '37_cloud': E('sleepy', 'smile', { particles: ['sparkles'] }),
+  '38_cycling': E('happy', 'smile', { extras: ['sweat'] }),
+  '39_angel': E('happy', 'smile', { props: ['halo'], particles: ['sparkles'] }),
+  '40_devil': E('angry', 'smirk', { props: ['horns'] }),
+  '41_birthday': E('happy', 'o', { props: ['partyhat'], particles: ['sparkles'] }),
+  '42_christmas': E('happy', 'smile', { props: ['santahat'], particles: ['snow'] }),
+  '43_wizard': E('open', 'smirk', { props: ['wizardhat'], particles: ['sparkles'] }),
+  '44_magic': E('happy', 'o', { particles: ['sparkles'] }),
+  '45_ninja': E('angry', 'none', { props: ['ninjaband'] }),
+  '46_traveler': E('open', 'smile', { props: ['strawhat'] }),
+  '47_vr_gamer': E('open', 'o', { props: ['visor'] }),
+  '48_guitar': E('closed', 'smile', { particles: ['notes'] }),
+};
+export const EXPRESSION_S = 5; // a pool expression shows this long, then the mood's own face returns
+
 export const emoteInterval = (random = Math.random) => 8 + 7 * random(); // seconds, 8–15
 export function nextEmote(mood, current, random = Math.random) {
   const options = EMOTES[mood].filter(e => e !== current);

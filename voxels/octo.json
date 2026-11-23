@@ -1,6 +1,6 @@
 {
-  "about": "Pixel Octo base model. 1 voxel = 1 octo pixel. Each part: at = [x, y, z] of the top-left of slice 0; slices[0] is the front (z goes down per slice), rows run top to bottom (y goes down per row); '.' is empty, other chars are palette keys. thick < 1 makes a flat decal (face parts). x right, y up, z towards the viewer. Face parts are named eyes.*, mouth.*, extra.*; Scene3D.setFace() shows one eyes, one mouth (or none) and any extras.",
-  "palette": {"o": "#F87A4B", "s": "#D2562F", "e": "#191617", "h": "#F8363B", "p": "#EF9B81", "w": "#FFF4EE", "t": "#6EC1FF", "a": "#E8283C", "d": "#86CCFF"},
+  "about": "Pixel Octo base model. 1 voxel = 1 octo pixel. Each part: at = [x, y, z] of the top-left of slice 0; slices[0] is the front (z goes down per slice), rows run top to bottom (y goes down per row); '.' is empty, other chars are palette keys. thick < 1 makes a flat decal (face parts). x right, y up, z towards the viewer. Face parts are named eyes.*, mouth.*, extra.*, and props prop.* (hats, glasses, headphones\u2026); Scene3D.setFace() shows one eyes, one mouth (or none), any extras and any props.",
+  "palette": {"o": "#F87A4B", "s": "#D2562F", "e": "#191617", "h": "#F8363B", "p": "#EF9B81", "w": "#FFF4EE", "t": "#6EC1FF", "a": "#E8283C", "d": "#86CCFF", "y": "#FFD34D", "g": "#5BBF4A", "G": "#2E7D32", "q": "#4A4F58", "b": "#3D7BD9", "n": "#6B3B24", "m": "#F3E6DC", "v": "#5B3A8C"},
   "parts": {
     "body": { "at": [0, 10, 3], "slices": [
         ["..oooooooo..", ".oooooooooo.", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo", "oooooooooooo"],
@@ -34,6 +34,24 @@
     "extra.blush": { "at": [1, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["pp......pp"]] },
     "extra.tears": { "at": [3, 4, 3.6], "thick": 0.2, "hidden": true, "slices": [["t....t", "t....t"]] },
     "extra.sweat": { "at": [10, 9, 3.6], "thick": 0.2, "hidden": true, "slices": [["d", "d"]] },
-    "extra.anger": { "at": [9, 12, 3.6], "thick": 0.2, "hidden": true, "slices": [[".a.", "aaa", ".a."]] }
+    "extra.anger": { "at": [9, 12, 3.6], "thick": 0.2, "hidden": true, "slices": [[".a.", "aaa", ".a."]] },
+    "prop.sunglasses": { "at": [2, 7, 3.65], "thick": 0.35, "hidden": true, "slices": [["eeeeeeee", "eee..eee"]] },
+    "prop.glasses": { "at": [2, 7, 3.65], "thick": 0.35, "hidden": true, "slices": [["qqq..qqq", "q.q..q.q", "q.q..q.q", "qqq..qqq"]] },
+    "prop.visor": { "at": [2, 7, 3.75], "thick": 0.5, "hidden": true, "slices": [["qqqqqqqq", "qttqqttq", "qqqqqqqq"]] },
+    "prop.headband": { "at": [1, 9, 3.65], "thick": 0.35, "hidden": true, "slices": [["wwwwwwwwww"]] },
+    "prop.ninjaband": { "at": [0, 8, 3.65], "thick": 0.35, "hidden": true, "slices": [["eeeeeeeeeeee"]] },
+    "prop.headphones": { "at": [-1, 11, 2], "hidden": true, "slices": [["...qqqqqqqq...", "..q........q..", ".q..........q.", "b............b", "b............b", "b............b"], ["...qqqqqqqq...", "..q........q..", ".q..........q.", "b............b", "b............b", "b............b"]] },
+    "prop.horns": { "at": [2, 12, 2], "hidden": true, "slices": [["h......h", "hh....hh"], ["h......h", "hh....hh"]] },
+    "prop.halo": { "at": [2, 13, 3], "hidden": true, "slices": [["..yyyy.."], [".y....y."], [".y....y."], ["..yyyy.."]] },
+    "prop.bulb": { "at": [4, 15, 2], "hidden": true, "slices": [[".yy.", "yyyy", "yyyy", ".qq."], [".yy.", "yyyy", "yyyy", ".qq."]] },
+    "prop.partyhat": { "at": [3, 15, 2], "hidden": true, "slices": [["..y..", ".hhh.", ".yyy.", "hhhhh", "yyyyy"], ["..y..", ".hhh.", ".yyy.", "hhhhh", "yyyyy"]] },
+    "prop.santahat": { "at": [1, 14, 3], "hidden": true, "slices": [["......ww..", "....hhhw..", "..hhhhhh..", "wwwwwwwwww"], ["......ww..", "....hhhw..", "..hhhhhh..", "wwwwwwwwww"], ["......ww..", "....hhhw..", "..hhhhhh..", "wwwwwwwwww"], ["......ww..", "....hhhw..", "..hhhhhh..", "wwwwwwwwww"]] },
+    "prop.wizardhat": { "at": [1, 15, 3], "hidden": true, "slices": [["....vv....", "...vvvv...", "...vyyv...", "..vvvvvv..", "vvvvvvvvvv"], ["....vv....", "...vvvv...", "...vyyv...", "..vvvvvv..", "vvvvvvvvvv"], ["....vv....", "...vvvv...", "...vyyv...", "..vvvvvv..", "vvvvvvvvvv"], ["....vv....", "...vvvv...", "...vyyv...", "..vvvvvv..", "vvvvvvvvvv"]] },
+    "prop.chefhat": { "at": [2, 15, 3], "hidden": true, "slices": [[".ww..ww.", "wwwwwwww", "wwwwwwww", ".wwwwww.", ".wwwwww."], [".ww..ww.", "wwwwwwww", "wwwwwwww", ".wwwwww.", ".wwwwww."], [".ww..ww.", "wwwwwwww", "wwwwwwww", ".wwwwww.", ".wwwwww."], [".ww..ww.", "wwwwwwww", "wwwwwwww", ".wwwwww.", ".wwwwww."]] },
+    "prop.strawhat": { "at": [-1, 13, 4], "hidden": true, "slices": [["..............", "..............", "yyyyyyyyyyyyyy"], ["...yyyyyyyy...", "...nnnnnnnn...", "yyyyyyyyyyyyyy"], ["...yyyyyyyy...", "...nnnnnnnn...", "yyyyyyyyyyyyyy"], ["...yyyyyyyy...", "...nnnnnnnn...", "yyyyyyyyyyyyyy"], ["...yyyyyyyy...", "...nnnnnnnn...", "yyyyyyyyyyyyyy"], ["..............", "..............", "yyyyyyyyyyyyyy"]] },
+    "prop.sprout": { "at": [4, 14, 2], "hidden": true, "slices": [["gg.gg", ".gGg.", "..G..", "..G.."], ["gg.gg", ".gGg.", "..G..", "..G.."]] },
+    "prop.antennae": { "at": [2, 14, 2], "hidden": true, "slices": [["y......y", ".G....G.", ".G....G.", "..G..G.."], ["y......y", ".G....G.", ".G....G.", "..G..G.."]] },
+    "prop.mug": { "at": [13, 5, 2], "hidden": true, "slices": [["nnn.", "mmmm", "mmm."], ["nnn.", "mmmm", "mmm."]] },
+    "prop.laptop": { "at": [7, 4, 6], "hidden": true, "slices": [["qqqqqqq", "qqqtqqq", "qqqqqqq", "qqqqqqq"], [".......", ".......", ".......", "qqqqqqq"], [".......", ".......", ".......", "qqqqqqq"]] }
   }
 }
