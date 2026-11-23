@@ -142,7 +142,9 @@ let fakeTemps = { cpu: 55, gpu: 50 };
 let fakeTempsUntil = -Infinity;
 let picked = null; // { emote, until }: an emote chosen in the dock or sent by the bridge
 let look = null; // { fx, fy }: where the terminal is, as fractions of the screen
-const bridge = { ws: null, connected: false, telemetry: null, controls: null };
+const bridge = { ws: null, connected: false, telemetry: null, controls: null, usage: null, config: null };
+const MANUAL_S = 60; // the dock's pressure slider / masti / demo win over live data for a minute
+let manualUntil = -Infinity;
 const BRIDGE = 'http://127.0.0.1:8765';
 
 function currentTemps(now) {
@@ -161,6 +163,8 @@ setInterval(() => {
     bridge: bridge.connected,
     telemetry: bridge.telemetry,
     controls: bridge.controls,
+    usage: bridge.usage,
+    config: bridge.config,
   };
   win?.webContents.send('sim:state', state);
   if (dock?.isVisible()) dock.webContents.send('sim:state', state);
@@ -175,6 +179,10 @@ function applyCommand(m) {
   else if (m.cmd === 'pressure' && isNum(m.value, 0, 100)) sim.setPressure(m.value, now);
   else if (m.cmd === 'look' && (m.look === null || (isNum(m.look?.fx, 0, 1) && isNum(m.look?.fy, 0, 1)))) look = m.look && { fx: m.look.fx, fy: m.look.fy };
   else if (m.cmd === 'emote' && typeof m.name === 'string' && /^\d\d_[a-z_]+$/.test(m.name) && isNum(m.duration, 0.5, 30)) picked = { emote: m.name, until: now + m.duration };
+  else if (m.cmd === 'react' && typeof m.emote === 'string' && /^\d\d_[a-z_]+$/.test(m.emote)) { // Claude Code moment
+    picked = { emote: m.emote, until: now + 6 };
+    if (MOVE_NAMES.includes(m.move)) win?.webContents.send('octo:play', m.move);
+  }
   else console.warn('bridge: ignored command', JSON.stringify(m).slice(0, 200));
 }
 
@@ -194,8 +202,12 @@ function connectBridge() {
     if (msg.type === 'init') {
       bridge.telemetry = msg.telemetry ?? null;
       bridge.controls = msg.controls ?? null;
+      bridge.usage = msg.usage ?? null;
+      bridge.config = msg.config ?? null;
     } else if (msg.type === 'telemetry') bridge.telemetry = msg.data;
     else if (msg.type === 'controls') bridge.controls = msg.data;
+    else if (msg.type === 'usage') bridge.usage = msg.data;
+    else if (msg.type === 'live') { if (isNum(msg.pressure, 0, 100) && clock() >= manualUntil) sim.feed(msg.pressure); }
     else if (msg.type === 'cmd') applyCommand(msg);
   };
   ws.onclose = () => { // bridge not running or restarted: keep the simulator going, retry
@@ -253,7 +265,9 @@ ipcMain.on('octo:move', (e, x, y) => {
 ipcMain.on('octo:drop', e => { if (fromOverlay(e)) settle(); });
 ipcMain.on('dock:toggle', e => { if (fromOverlay(e)) toggleDock(); });
 
-ipcMain.on('sim:pressure', (e, v) => { if (fromDock(e) && isNum(v, 0, 100)) sim.setPressure(v, clock()); });
+ipcMain.on('sim:pressure', (e, v) => {
+  if (fromDock(e) && isNum(v, 0, 100)) { sim.setPressure(v, clock()); manualUntil = clock() + MANUAL_S; }
+});
 ipcMain.on('sim:masti', e => { if (fromDock(e)) sim.toggleMasti(clock()); });
 ipcMain.on('sim:demo', (e, on) => { if (fromDock(e) && typeof on === 'boolean') sim.setDemo(on, clock()); });
 ipcMain.on('sim:temps', (e, t) => {

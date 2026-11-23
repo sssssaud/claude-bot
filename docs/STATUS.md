@@ -8,8 +8,29 @@
 | 3 Badge + moods + dock (fake data) | ✅ done 2026-11-20 (3a moods/face/badge · 3b dock · 3c moves, particles, gaze) | Tag `phase-3-working`. |
 | 4 Bridge + Stats Popup + Controls | 🔨 4a done 2026-11-22 | Python aiohttp bridge on 127.0.0.1:8765, real telemetry (<0.9% CPU, dGPU safe check), click octo → popup with live stats, BT/Wi-Fi/brightness toggles, alert toasts. Next: 4b RGB keyboard & terminal position via KWin |
 | 5 Telemetry HUD | — | Merged into popup per Saud's 2026-11-21 plan |
-| 6 Hooks → live pressure | — | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
+| 6 Hooks → live pressure | 🔨 built + tested 2026-11-23, waiting for Saud's OK to install into ~/.claude/settings.json | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
+
+## Claude Code → live mood + token usage (Claude, 2026-11-23)
+
+- `bridge/activity.py` (pure, 8 tests): hook events → pressure (Edit/Write 3, Bash 2, Read/Grep/Glob
+  and web 1; score halves every 20 s; sub-agents +15 each; system load **added** up to 30 points.
+  Averaging it in, as first written, capped Claude-only work at 70, so overdrive was unreachable:
+  caught by a test) and reactions (Stop → 10_idea + jump, or 04_cool + flipJump after overdrive;
+  failed tool → 08_confused, 3 in a row → 05_crying, Esc is not an error; risky Bash → 40_devil +
+  peekTurn; web tools → 46_traveler; sub-agent → 44_magic; Notification → 07_surprised + jump).
+- Bridge: `POST /event`, `POST /usage` (validated), live pressure broadcast at 1 Hz, `config.json`
+  thresholds loaded with defaults (agy's file was never read before).
+- Electron: `sim.feed()` applies live pressure without resetting masti, auto-masti or the sleep timer;
+  dock slider / auto-demo win for 60 s; reactions show the sticker for 6 s and play the move.
+- Popup token row (Session % · Week % · reset time, "not updated recently" after 15 min); toasts at
+  80 % (⚠) and 95 % (🛑) per window, once per level until that window resets.
+- `hooks/claude_hook.py`, `hooks/statusline.py`, `hooks/install.py` (see `hooks/README.md`); 13 tests.
+- Checked live with the real bridge and the real scripts: hook 37 ms, exit 0; 12 edits → pressure 100;
+  risky Bash → devil; Stop → cool; status line passed through unchanged; 82 % → ⚠ toast, 96 % → 🛑
+  toast (placed below the octo, not over the popup); app idle 12.9 % of one core + bridge 0.4 %; dGPU
+  asleep. Installer dry-run on the real settings: 8 events added, Mission Control's 3 hooks and
+  ponytail's status line kept. **Not installed yet** (needs Saud's OK).
 
 ## Phase 4a review fixes (Claude, 2026-11-23)
 

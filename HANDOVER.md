@@ -44,6 +44,13 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
 10. Saud's style: plan (goal → steps → risks → fallback) and get his OK before each phase; fake data
     first, hardware last; one change at a time; "make it alive first, beauty later".
 
+## Progress since this handover was written
+
+- 2026-11-22 agy: step 1 + 2 (bridge, popup, toasts), `99d4710`.
+- 2026-11-23 Claude: reviewed and fixed 4a (`06b83a5`); step 3 built and tested (activity engine,
+  hooks, status line wrapper, token row + alerts, installer). Install waits for Saud's OK.
+  Remaining: step 4 (keyboard RGB, real terminal position) and step 5.
+
 ## What's next (Saud's revised order, 2026-11-21; details in docs/STATUS.md "Saud's additions")
 
 1. **Bridge with real data** (`bridge/`, Python, aiohttp on `127.0.0.1:8765`, reject non-local

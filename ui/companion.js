@@ -11,7 +11,12 @@ import {
 
 const SPRITES = import.meta.glob('../assets/emotes-clean/[0-9][0-9]_*.png', { eager: true, query: '?url', import: 'default' });
 const spriteUrl = name => SPRITES[`../assets/emotes-clean/${name}.png`];
-const EMOTE_SCALE = 2; // sprite px → CSS px (sprites are ~30 px wide)
+const EMOTE_SCALE = 2;
+// same defaults as the bridge (bridge/server.py); config.json overrides them through the bridge
+const DEFAULT_LIMITS = { cpu_temp_alert: 90, gpu_temp_alert: 83, ram_percent_alert: 90, tokens_warning_percent: 80, tokens_critical_percent: 95 };
+const resetTime = secs => (Number.isFinite(secs)
+  ? new Date(secs * 1000).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  : '?'); // sprite px → CSS px (sprites are ~30 px wide)
 
 export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, onControl, ...sceneOptions }) {
   layer.insertAdjacentHTML('beforeend', `
@@ -52,7 +57,8 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       </div>
       <div class="pop-tokens">
         <span class="pop-lbl">Tokens</span>
-        <span class="pop-val pop-tokens-val">Session: -- | Week: --</span>
+        <span class="pop-val pop-tokens-val">Session -- · Week --</span>
+        <span class="pop-sub pop-tokens-sub">waiting for Claude Code</span>
       </div>
     </div>
     <div class="toast" role="status" aria-live="polite"></div>`);
@@ -81,6 +87,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   const brightSlider = popup.querySelector('.pop-bright-slider');
   const brightVal = popup.querySelector('.pop-bright-val');
   const tokensVal = popup.querySelector('.pop-tokens-val');
+  const tokensSub = popup.querySelector('.pop-tokens-sub');
 
   let popupOpen = false;
   let currentBt = false;
@@ -126,11 +133,11 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   // Alert toast system (cooldown: 60s per alert)
   const lastAlertTimes = { cpu: 0, gpu: 0, ram: 0, token: 0 };
   let toastTimer = null;
-  function triggerToast(text) {
+  function triggerToast(text, ms = 4000) {
     toast.textContent = text;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), ms);
     place();
   }
 
@@ -231,9 +238,14 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
     const tw = toast.offsetWidth || 180;
     const th = toast.offsetHeight || 30;
-    let tx = Math.max(8, Math.min(layer.clientWidth - tw - 8, octo.x + (octo.width - tw) / 2));
-    let ty = Math.max(8, octo.y - th - 12);
-    moveTo(toast, tx, ty);
+    const tx = Math.max(8, Math.min(layer.clientWidth - tw - 8, octo.x + (octo.width - tw) / 2));
+    let ty = octo.y - th - 12;
+    const pa = popupOpen && anchors.get(popup);
+    if (pa) { // never on top of the open popup: above it, else below the octo
+      const above = pa.y - th - 6;
+      ty = above >= 4 ? above : Math.min(layer.clientHeight - th - 4, octo.y + octo.height + 6);
+    }
+    moveTo(toast, tx, Math.max(4, ty));
 
     emitRegion();
   }
@@ -273,11 +285,18 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
   function update(next) {
     state = next;
-    checkAlerts(next.telemetry);
+    const limits = { ...DEFAULT_LIMITS, ...next.config?.thresholds };
+    checkAlerts(next.telemetry, limits);
+    checkTokens(next.usage, limits);
     if (popupOpen) renderPopup(next);
   }
 
-  function renderPopup({ telemetry: t, controls: c, bridge }) {
+  function renderPopup({ telemetry: t, controls: c, bridge, usage: u }) {
+    const pctOf = w => (w ? `${Math.round(w.used_percentage)}%` : '--');
+    setText(tokensVal, `Session ${pctOf(u?.five_hour)} · Week ${pctOf(u?.seven_day)}`);
+    const stale = u && Date.now() / 1000 - u.received_at > 15 * 60; // status line only updates while Claude Code runs
+    setText(tokensSub, !u ? 'waiting for Claude Code'
+      : `resets ${resetTime(u.five_hour?.resets_at)}${stale ? ' · not updated recently' : ''}`);
     bridgeDot.classList.toggle('online', Boolean(bridge));
     if (t) {
       setText(cpuVal, `${Math.round(t.cpu?.usage ?? 0)}%`);
@@ -310,8 +329,23 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     } else if (!c?.brightness) setText(brightVal, '?');
   }
 
-  // Alert toasts, at most one per kind per minute (thresholds move to config in the token step)
-  function checkAlerts(t) {
+  // Token alerts: one toast per window and level, re-armed when the window resets (spec: notify at 80 %).
+  const tokenAlerted = new Set();
+  function checkTokens(u, limits) {
+    for (const [key, name] of [['five_hour', 'Session'], ['seven_day', 'Weekly']]) {
+      const w = u?.[key];
+      if (!w) continue;
+      const level = w.used_percentage >= limits.tokens_critical_percent ? 'critical'
+        : w.used_percentage >= limits.tokens_warning_percent ? 'warning' : null;
+      const id = `${key}:${level}:${w.resets_at}`;
+      if (!level || tokenAlerted.has(id)) continue;
+      tokenAlerted.add(id);
+      triggerToast(`${level === 'critical' ? '🛑' : '⚠'} ${name} tokens ${Math.round(w.used_percentage)}% used · resets ${resetTime(w.resets_at)}`, 6000);
+    }
+  }
+
+  // Alert toasts, at most one per kind per minute
+  function checkAlerts(t, limits) {
     if (!t) return;
     const nowMs = Date.now();
     const fire = (kind, text) => {
@@ -319,9 +353,9 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       lastAlertTimes[kind] = nowMs;
       triggerToast(text);
     };
-    if (t.cpu?.temp >= 90) fire('cpu', `🔥 CPU hot: ${Math.round(t.cpu.temp)}°C`);
-    else if (t.gpu?.awake && t.gpu?.temp >= 83) fire('gpu', `🔥 GPU hot: ${Math.round(t.gpu.temp)}°C`);
-    else if (t.ram?.percent >= 90) fire('ram', `⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
+    if (t.cpu?.temp >= limits.cpu_temp_alert) fire('cpu', `🔥 CPU hot: ${Math.round(t.cpu.temp)}°C`);
+    else if (t.gpu?.awake && t.gpu?.temp >= limits.gpu_temp_alert) fire('gpu', `🔥 GPU hot: ${Math.round(t.gpu.temp)}°C`);
+    else if (t.ram?.percent >= limits.ram_percent_alert) fire('ram', `⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
   }
 
   function apply({ p, masti, temps, look, sleepy, emote: picked }, now) {

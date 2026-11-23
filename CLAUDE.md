@@ -57,4 +57,5 @@ Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest 
 - Stack note: no React (approved badge is plain DOM; see docs/STATUS.md). Badge DOM work runs inside Scene3D's frame (onFrame) to keep CPU down.
 - Blockers: none. Open: AW-ELC flash-write question (Phase 4).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
+- 2026-11-23: agy's Phase 4a reviewed + fixed; Claude Code hooks + token usage built and tested (`hooks/`), install waits for Saud's OK (`python3 hooks/install.py`).
 - Save-file: `docs/STATUS.md`. Handover for another agent: `HANDOVER.md` (2026-11-21, Claude weekly quota at 86 %).

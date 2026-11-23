@@ -17,11 +17,13 @@ import logging
 import math
 import re
 import time
+from pathlib import Path
 from urllib.parse import urlparse
 
 import psutil
 from aiohttp import web, WSMsgType
 
+from .activity import EVENTS, Activity
 from .controls import SystemControls
 from .telemetry import TelemetryCollector
 
@@ -29,6 +31,30 @@ log = logging.getLogger("bridge")
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 EMOTE_NAME = re.compile(r"^\d\d_[a-z_]+$")
 CONTROLS_REFRESH_S = 10.0  # pick up changes made outside the bot (KDE tray, keyboard keys)
+TOOL_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+AGENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
+DEFAULT_THRESHOLDS = {"cpu_temp_alert": 90, "gpu_temp_alert": 83, "ram_percent_alert": 90,
+                      "tokens_warning_percent": 80, "tokens_critical_percent": 95}
+
+
+def load_config(path: Path = CONFIG_PATH) -> dict:
+    """Thresholds from config.json; a missing file or a bad value falls back to the default, loudly."""
+    thresholds = dict(DEFAULT_THRESHOLDS)
+    try:
+        raw = json.loads(path.read_text()).get("thresholds", {})
+    except FileNotFoundError:
+        return {"thresholds": thresholds}
+    except (json.JSONDecodeError, AttributeError) as e:
+        log.error("config.json unreadable (%s): using defaults", e)
+        return {"thresholds": thresholds}
+    for key in DEFAULT_THRESHOLDS:
+        if key in raw:
+            try:
+                thresholds[key] = number(raw, key, 1, 120)
+            except BadRequest as e:
+                log.error("config.json: %s; using default %s", e, DEFAULT_THRESHOLDS[key])
+    return {"thresholds": thresholds}
 
 
 class BadRequest(ValueError):
@@ -47,6 +73,15 @@ def flag(data: dict, key: str) -> bool:
     v = data.get(key)
     if not isinstance(v, bool):
         raise BadRequest(f"'{key}' must be true or false")
+    return v
+
+
+def optional(data: dict, key: str, pattern):
+    v = data.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, str) or not pattern.match(v):
+        raise BadRequest(f"'{key}' has an unexpected format")
     return v
 
 
@@ -99,6 +134,9 @@ class BridgeApp:
         self.controls = SystemControls(mock=mock)
         self.latest_telemetry = self.telemetry.snapshot()
         self.latest_controls = None  # filled by the first refresh
+        self.activity = Activity()
+        self.latest_usage = None  # Claude Code token usage, from hooks/statusline.py
+        self.config = load_config()
         self.ws_clients = set()
         self.tasks = []
 
@@ -115,6 +153,8 @@ class BridgeApp:
         r.add_post("/pressure", self.handle_pressure)
         r.add_post("/look", self.handle_look)
         r.add_post("/emote", self.handle_emote)
+        r.add_post("/event", self.handle_event)  # hooks/claude_hook.py
+        r.add_post("/usage", self.handle_usage)  # hooks/statusline.py
         r.add_get("/ws", self.handle_ws)
         self.app.on_startup.append(self._start)
         self.app.on_cleanup.append(self._stop)
@@ -166,6 +206,41 @@ class BridgeApp:
         data = await body(request)
         return await self.command({"cmd": "emote", "name": emote_name(data), "duration": number(data, "duration", 0.5, 30) if "duration" in data else 6.0})
 
+    # ---- Claude Code ----
+    async def handle_event(self, request):
+        data = await body(request)
+        if data.get("event") not in EVENTS:
+            raise BadRequest("unknown 'event'")
+        ev = {"event": data["event"], "tool": optional(data, "tool", TOOL_NAME), "agent": optional(data, "agent", AGENT_ID)}
+        for key in ("interrupt", "risky"):
+            if key in data:
+                ev[key] = flag(data, key)
+        reaction = self.activity.feed(ev, time.monotonic())
+        if reaction:
+            await self.broadcast({"type": "cmd", "cmd": "react", **reaction})
+        return web.json_response({"ok": True})
+
+    async def handle_usage(self, request):
+        data = await body(request)
+        usage = {}
+        for key in ("five_hour", "seven_day"):
+            if key in data:
+                w = data[key]
+                if not isinstance(w, dict):
+                    raise BadRequest(f"'{key}' must be an object")
+                resets = w.get("resets_at")
+                if resets is not None and (isinstance(resets, bool) or not isinstance(resets, int) or resets < 0):
+                    raise BadRequest(f"'{key}.resets_at' must be unix seconds")
+                usage[key] = {"used_percentage": number(w, "used_percentage", 0, 1000), "resets_at": resets}
+        if "context" in data:
+            usage["context"] = number(data, "context", 0, 100)
+        if not usage:
+            raise BadRequest("nothing to record")
+        usage["received_at"] = round(time.time())
+        self.latest_usage = usage
+        await self.broadcast({"type": "usage", "data": usage})
+        return web.json_response({"ok": True})
+
     async def handle_health(self, _request):
         return web.json_response({
             "status": "ok",
@@ -180,7 +255,8 @@ class BridgeApp:
         await ws.prepare(request)
         self.ws_clients.add(ws)
         try:
-            await ws.send_json({"type": "init", "telemetry": self.latest_telemetry, "controls": self.latest_controls})
+            await ws.send_json({"type": "init", "telemetry": self.latest_telemetry, "controls": self.latest_controls,
+                                "usage": self.latest_usage, "config": self.config})
             async for msg in ws:  # clients only listen; anything they send is ignored
                 if msg.type == WSMsgType.ERROR:
                     log.warning("websocket closed with error: %s", ws.exception())
@@ -202,8 +278,11 @@ class BridgeApp:
         while True:
             await asyncio.sleep(1.0)
             try:
-                self.latest_telemetry = await asyncio.to_thread(self.telemetry.snapshot)
-                await self.broadcast({"type": "telemetry", "data": self.latest_telemetry})
+                t = self.latest_telemetry = await asyncio.to_thread(self.telemetry.snapshot)
+                await self.broadcast({"type": "telemetry", "data": t})
+                gpu = t["gpu"]["usage"] if t["gpu"].get("awake") else 0
+                load = max(t["cpu"].get("usage") or 0, gpu or 0)
+                await self.broadcast({"type": "live", "pressure": round(self.activity.pressure(time.monotonic(), load), 1)})
             except Exception:  # keep the loop alive, but never silently
                 log.exception("telemetry snapshot failed")
 

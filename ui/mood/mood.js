@@ -102,6 +102,9 @@ export function createSimulator() {
   const reset = now => { autoUntil = -1; autoDone = false; idleSince = now; };
   return {
     setPressure(v, now) { p = Math.min(100, Math.max(0, v)); demo = false; masti = false; reset(now); },
+    // live pressure (Claude Code via the bridge): moves the mood but keeps masti, auto-masti and
+    // the sleep timer, which setPressure() resets (it is a user action)
+    feed(v) { if (!demo) p = Math.min(100, Math.max(0, v)); },
     toggleMasti(now) { masti = !masti; demo = false; reset(now); },
     setDemo(on, now) { demo = on; demoFrom = now; masti = false; reset(now); },
     state(now) {

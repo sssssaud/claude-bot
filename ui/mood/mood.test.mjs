@@ -79,3 +79,17 @@ test('simulator: one auto-masti per quiet stretch, then sleepy after 5 quiet min
   sim.setPressure(40, SLEEP_AFTER + 1);
   assert.equal(sim.state(SLEEP_AFTER + 2).sleepy, false, 'work wakes it');
 });
+
+test('simulator: live feed changes the mood without cancelling masti or the sleep timer', () => {
+  const sim = createSimulator();
+  sim.setPressure(5, 0);
+  for (let t = 1; t < SLEEP_AFTER; t += 1) { sim.feed(3); sim.state(t); } // live feeds every second, auto-masti burst comes and goes
+  assert.equal(sim.state(SLEEP_AFTER).sleepy, true, 'quiet feeds keep the idle clock running');
+  sim.toggleMasti(400);
+  sim.feed(60);
+  assert.equal(sim.state(401).masti, true, 'feed never cancels masti');
+  assert.equal(sim.state(401).p, 60);
+  sim.setDemo(true, 402);
+  sim.feed(99);
+  assert.ok(sim.state(403).p < 99, 'auto-demo wins over live data');
+});
