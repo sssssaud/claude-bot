@@ -8,7 +8,7 @@
 | 3 Badge + moods + dock (fake data) | ✅ done 2026-11-20 (3a moods/face/badge · 3b dock · 3c moves, particles, gaze) | Tag `phase-3-working`. |
 | 4 Bridge + Stats Popup + Controls | 🔨 4a done 2026-11-22 | Python aiohttp bridge on 127.0.0.1:8765, real telemetry (<0.9% CPU, dGPU safe check), click octo → popup with live stats, BT/Wi-Fi/brightness toggles, alert toasts. Next: 4b RGB keyboard & terminal position via KWin |
 | 5 Telemetry HUD | — | Merged into popup per Saud's 2026-11-21 plan |
-| 6 Hooks → live pressure | 🔨 built + tested 2026-11-23, waiting for Saud's OK to install into ~/.claude/settings.json | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
+| 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
 
 ## Claude Code → live mood + token usage (Claude, 2026-11-23)
@@ -30,7 +30,8 @@
   risky Bash → devil; Stop → cool; status line passed through unchanged; 82 % → ⚠ toast, 96 % → 🛑
   toast (placed below the octo, not over the popup); app idle 12.9 % of one core + bridge 0.4 %; dGPU
   asleep. Installer dry-run on the real settings: 8 events added, Mission Control's 3 hooks and
-  ponytail's status line kept. **Not installed yet** (needs Saud's OK).
+  ponytail's status line kept. **Installed 2026-11-23 22:52** after Saud's OK; within seconds this Claude Code session's own hooks and status line were reaching the bridge (`POST /event`, `POST /usage` → 200; session 86 %, week 10 %).
+- `run.sh` fixed: the app relaunched itself, so the script saw it exit at once and its EXIT trap killed the bridge. It now passes `--ozone-platform` itself (no relaunch) and stops the bridge when the octo closes.
 
 ## Phase 4a review fixes (Claude, 2026-11-23)
 
