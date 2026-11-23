@@ -1,6 +1,8 @@
 # Claude Bot (Pixel Octo)
 
 ## Project goal
+**Purpose (Saud, 2026-11-23):** show what each Claude Code session is doing: one octo per running session, so terminals can stay minimised. Later: comes to the cursor for permissions / when done; voice → text input (the bot itself never speaks). Details: docs/STATUS.md "Saud's vision".
+
 A transparent, always-on-top desktop companion for Nobara Linux. A 3D voxel version of my Pixel Octo emote character floats on screen, reacts to Claude Code activity and system load (0–100 pressure), shows thinking verbs in a heat-coloured badge, always shows tiny CPU/GPU usage and temperature, and syncs the Dell G15's 4-zone keyboard RGB to its mood.
 
 Full spec: `PROMPT.md` (read it fully before planning). UI reference: `assets/reference/ui-preview.html`.

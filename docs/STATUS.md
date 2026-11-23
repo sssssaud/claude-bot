@@ -227,6 +227,25 @@ Feasibility, checked 2026-11-21 on this laptop (no root needed for any of it):
 - Bluetooth: `bluetoothctl` (adapter powered). Wi-Fi: `nmcli`. Battery: `upower` / psutil.
 - GPU numbers only while the RTX 3050 is awake; when asleep the popup says so (reading it wakes it).
 
+## Saud's vision: what the bot is for (2026-11-23)
+
+The point of the bot: **show what each Claude Code session is doing**, so terminals can stay minimised.
+
+1. **One octo per running session.** Each session spawns its own octo, labelled with its project folder;
+   the octo shows what that session is doing (editing, running Bash, waiting, done). Session ends → its
+   octo leaves. Feasible: every hook payload has `session_id` and `cwd` (checked in 2.1.330); the hook
+   must start sending `session_id` + the folder name (not the full path), and SessionStart/SessionEnd
+   need hooking too.
+2. **Future: attention.** For users without auto-permission, the octo comes to the cursor when its session
+   needs a permission (`PermissionRequest` hook: tool_name, tool_input); when work is done it roams the
+   screen or comes to the cursor. Cursor position under Wayland: KWin script (`workspace.cursorPos`),
+   because X11 apps can't see the cursor over Wayland windows. Answering stays in the terminal for now
+   (Allow/Deny buttons on a floating window = one stray click runs a command; decide later).
+3. **Future: voice → text only.** The user speaks, it types. Local `whisper-cli` (whisper.cpp, CPU; already
+   installed). Typing into the terminal needs `wl-clipboard` or `ydotool` (dnf, later).
+   **The bot never speaks** (no text-to-speech): it would read everything, not what matters, and what
+   matters is for the developer/user to decide.
+
 ## Constraints
 - **No Plasma X11 session** on this laptop (it doesn't work, per Saud). The spec's "log into a Plasma
   X11 session" fallback (PROMPT.md §11) is out. The overlay runs in the Wayland session through

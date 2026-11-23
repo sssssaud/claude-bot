@@ -50,6 +50,8 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
 - 2026-11-23 Claude: reviewed and fixed 4a (`06b83a5`); step 3 built and tested (activity engine,
   hooks, status line wrapper, token row + alerts, installer); installed with Saud's OK, live.
   Remaining: step 4 (keyboard RGB, real terminal position) and step 5.
+- 2026-11-23 Saud's vision (docs/STATUS.md): one octo per Claude Code session is the core purpose;
+  later attention (permission → octo to the cursor) and voice → text (no text-to-speech, ever).
 
 ## What's next (Saud's revised order, 2026-11-21; details in docs/STATUS.md "Saud's additions")
 
