@@ -39,11 +39,12 @@ Folders other than `assets/` are created phase by phase, not all up front.
 ## Build / run commands
 Working now:
 - Setup: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && npm install`
-- `npm run app`: build + the desktop overlay (Electron, relaunches itself on XWayland; `CLAUDE_BOT_OZONE=wayland` = native)
+- `./run.sh`: bridge + octos (the normal way). Quit from the tray icon. Start on login: tray checkbox (writes ~/.config/autostart/claude-bot.desktop).
+- `npm run app`: octos only, simulated data (Electron relaunches itself on XWayland; `CLAUDE_BOT_OZONE=wayland` = native)
 - `npm run dev:web`: 3D octo in a plain browser at http://127.0.0.1:5173 (`?speed=0.1` = slow motion)
-- `npm test`: node tests (model, face culling, moves, frame budget, window placement)
+- `npm run test:all`: node tests + bridge pytest + sprite self-check
 - `.venv/bin/python tools/test_clean_emotes.py`, then `.venv/bin/python tools/clean_emotes.py`
-Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest bridge/tests`.
+Still to come: `./setup.sh` (one-command setup).
 
 ## Working rules
 - Map (goal → steps → risks → fallback) before each phase; wait for my OK.
@@ -60,5 +61,5 @@ Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest 
 - Blockers: none. Open: AW-ELC flash-write question (Phase 4).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - 2026-11-23: agy's Phase 4a reviewed + fixed; Claude Code hooks + token usage built and tested (`hooks/`), installed 2026-11-23 (undo: `python3 hooks/install.py --uninstall`). Start everything with `./run.sh`.
-- 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, app/cursor.py via KWin script). Next: Saud picks (keyboard RGB / tray + Quit / voice → text).
+- 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, app/cursor.py via KWin script). Tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit) + single instance built. Next: Saud picks (keyboard RGB / voice → text / one-command setup).
 - Save-file: `docs/STATUS.md`. Handover for another agent: `HANDOVER.md` (2026-11-21, Claude weekly quota at 86 %).

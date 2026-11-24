@@ -12,10 +12,11 @@ where STATUS.md says "changed from the spec", STATUS.md wins).
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && npm install   # once
 npm test                                      # 24 node tests
 .venv/bin/python tools/test_clean_emotes.py   # sprite cleaner self-check
-npm run app                                   # build + desktop overlay; click the badge = simulator dock
+./run.sh                                      # bridge + octos (one per Claude Code session); tray icon has Quit
+npm run app                                   # octos only, simulated data; click the badge = simulator dock
 npm run dev:web                               # same octo in a browser, http://127.0.0.1:5173
 ```
-Close the overlay: `pkill -f 'claude-bot/node_modules/electron/dist/electron'` (no tray/Quit yet).
+Close: tray icon → Quit Claude Bot (or `pkill -f 'claude-bot/node_modules/electron/dist/electron'`). Only one copy runs at a time.
 Inspect the running app: launch `./node_modules/electron/dist/electron --remote-debugging-port=9223 .`
 and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.html`).
 
@@ -54,6 +55,7 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
   later attention (permission → octo to the cursor) and voice → text (no text-to-speech, ever).
 - 2026-11-24 Claude: emotes moved onto the 3D octo (sticker removed); one octo per session built + live.
 - 2026-11-24 Claude: attention built (octo comes to the cursor on PermissionRequest / Stop; cursor via app/cursor.py).
+- 2026-11-24 Claude: tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit), single-instance lock.
 
 ## What's next (Saud's revised order, 2026-11-21; details in docs/STATUS.md "Saud's additions")
 

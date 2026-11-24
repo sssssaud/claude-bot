@@ -24,8 +24,10 @@ npm install
 ## Run
 
 ```bash
-npm run app            # the desktop overlay: click the octo to spin it, drag it anywhere,
-                       # click its badge to open the simulator dock
+./run.sh               # bridge + octos: one octo per running Claude Code session (hooks: hooks/README.md)
+                       # click an octo for stats + controls, drag it anywhere, click its badge = simulator dock
+                       # tray icon: Hide/Show, Masti, Come to my cursor, Start on login, Quit
+npm run app            # the octos without the bridge (simulated data only)
 npm run dev:web        # http://127.0.0.1:5173 : the octo + buttons for idle, blink, turnAround, jump, roll
                        # add ?speed=0.1 to the URL to watch every move in slow motion; drag to orbit
 .venv/bin/python tools/clean_emotes.py   # rebuild assets/emotes-clean/ from the sticker sheet

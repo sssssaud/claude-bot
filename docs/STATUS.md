@@ -9,7 +9,24 @@
 | 4 Bridge + Stats Popup + Controls | 🔨 4a done 2026-11-22 | Python aiohttp bridge on 127.0.0.1:8765, real telemetry (<0.9% CPU, dGPU safe check), click octo → popup with live stats, BT/Wi-Fi/brightness toggles, alert toasts. Next: 4b RGB keyboard & terminal position via KWin |
 | 5 Telemetry HUD | — | Merged into popup per Saud's 2026-11-21 plan |
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
-| 7 Props, tray, packaging | — | |
+| 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
+
+## Tray, Quit, start on login (Claude, 2026-11-24)
+
+- Tray icon (KDE system tray, StatusNotifierItem; icon = the octo's front view rendered from
+  `voxels/octo.json`, `app/icon.png`). Menu: Hide/Show octos (left click toggles too), Simulator dock,
+  Masti, Come to my cursor (on/off), Start on login, Quit Claude Bot.
+- Hide/Show and Come-to-cursor are remembered in `~/.config/claude-bot/prefs.json` (bad file = defaults,
+  logged). Hidden octos don't draw: **0.4 % of a core** in total (shown: ~9 % per octo).
+- Start on login writes/removes `~/.config/autostart/claude-bot.desktop` → `bash ".../run.sh"` (Electron's
+  setLoginItemSettings does nothing on Linux). The folder path is checked before it goes into the Exec
+  line; `desktop-file-validate` passes. Left **off**: Saud's choice.
+- Quit stops everything: app, cursor + click-through helpers, and the bridge `run.sh` started.
+- Single-instance lock: a second launch (autostart + manual `run.sh`) exits in ~80 ms.
+- Tested by clicking the real tray menu over D-Bus (`com.canonical.dbusmenu`, what Plasma does): every item.
+  Found and fixed: unticking "Come to my cursor" saved correctly but the menu kept showing a tick.
+  A first quick CPU reading said hidden = 7.8 %; that script lost processes mid-measurement; the
+  per-process measurement says 0.4 %.
 
 ## Attention: the octo comes to the cursor (Claude, 2026-11-24)
 

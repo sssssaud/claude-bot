@@ -1,9 +1,10 @@
 // Electron main: one octo overlay per Claude Code session (transparent, always on top, click-through
 // except the octo, its badge and popup), plus the simulator dock. Each octo has its own mood
 // simulator fed by its session's live pressure from the bridge. No sessions: one idle "home" octo.
-import { app, BrowserWindow, globalShortcut, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, Notification, screen, Tray } from 'electron';
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nearestDisplay, clampOcto, toSaved, fromSaved } from './placement.js';
@@ -27,6 +28,10 @@ const MASTI_KEY = 'Control+Shift+M';
 const PLATFORM = process.env.CLAUDE_BOT_OZONE || 'x11';
 if (app.commandLine.getSwitchValue('ozone-platform') !== PLATFORM && !app.commandLine.hasSwitch('claude-bot-relaunched')) {
   app.relaunch({ args: [...process.argv.slice(1), `--ozone-platform=${PLATFORM}`, '--claude-bot-relaunched'] });
+  app.exit(0);
+} else if (!app.requestSingleInstanceLock()) {
+  // already running (e.g. started at login, then run.sh by hand): one set of octos is enough
+  console.error('claude-bot is already running; this copy exits');
   app.exit(0);
 }
 
@@ -78,7 +83,7 @@ function createOcto(key, label, slot) {
   lockDown(o.win);
   startShaper(o);
   setInputRegion(o); // fully click-through until the page reports the octo
-  o.win.once('ready-to-show', () => o.win.showInactive());
+  o.win.once('ready-to-show', () => { if (!prefs.hidden) o.win.showInactive(); });
   o.win.on('closed', () => { o.shaper?.stdin.end(); octos.delete(key); });
   o.win.loadFile(join(here, '../dist/overlay.html'));
   octos.set(key, o);
@@ -191,8 +196,89 @@ function attend(o, s) {
   const allowed = { permission: 'come_for_permission', done: 'come_when_done' }[s.attention];
   if (s.attention && s.attention_id !== o.attentionId) {
     o.attentionId = s.attention_id;
-    if (bridge.config?.attention?.[allowed] !== false) comeOver(o, s.attention);
+    if (bridge.config?.attention?.[allowed] !== false && prefs.comeOver && !prefs.hidden) comeOver(o, s.attention);
   } else if (!s.attention && o.away) goHome(o);
+}
+
+// ---- tray + preferences (spec §9) ----
+// prefs.json in the app's config folder: { hidden, comeOver }. Bad or missing file = defaults.
+const PREFS = { hidden: false, comeOver: true };
+const prefsPath = () => join(app.getPath('userData'), 'prefs.json');
+let prefs = { ...PREFS };
+function loadPrefs() {
+  try {
+    const raw = JSON.parse(readFileSync(prefsPath(), 'utf8'));
+    for (const k of Object.keys(PREFS)) if (typeof raw[k] === 'boolean') prefs[k] = raw[k];
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('prefs.json unreadable, using defaults:', err.message);
+  }
+}
+function savePrefs() {
+  try {
+    writeFileSync(prefsPath(), JSON.stringify(prefs));
+  } catch (err) {
+    console.error('could not save prefs:', err.message);
+  }
+}
+const warn = text => { console.error(text); new Notification({ title: 'Claude Bot', body: text }).show(); };
+
+// Start on login: an XDG autostart entry that runs run.sh (bridge + octos). Electron's own
+// setLoginItemSettings does nothing on Linux.
+const AUTOSTART = join(homedir(), '.config', 'autostart', 'claude-bot.desktop');
+const ROOT = join(here, '..');
+function setAutostart(on) {
+  try {
+    if (!on) {
+      if (existsSync(AUTOSTART)) unlinkSync(AUTOSTART);
+      return;
+    }
+    if (/["`$\\\n]/.test(ROOT)) throw new Error(`can't put this folder in a .desktop Exec line: ${ROOT}`);
+    mkdirSync(dirname(AUTOSTART), { recursive: true });
+    writeFileSync(AUTOSTART, [
+      '[Desktop Entry]', 'Type=Application', 'Name=Claude Bot',
+      'Comment=Pixel Octo: one octo per Claude Code session',
+      `Exec=bash "${join(ROOT, 'run.sh')}"`, `Icon=${join(here, 'icon.png')}`, 'Terminal=false', '',
+    ].join('\n'));
+  } catch (err) {
+    warn(`Start on login: ${err.message}`);
+  }
+}
+
+function setHidden(on) {
+  prefs.hidden = on;
+  savePrefs();
+  for (const o of octos.values()) {
+    if (o.win.isDestroyed()) continue;
+    if (on) { goHome(o); o.win.hide(); } else o.win.showInactive(); // hidden windows don't draw: no CPU
+  }
+  if (on) dock?.hide();
+  refreshTray();
+}
+
+let tray = null;
+function refreshTray() {
+  tray?.setContextMenu(Menu.buildFromTemplate([
+    { label: prefs.hidden ? 'Show octos' : 'Hide octos', click: () => setHidden(!prefs.hidden) },
+    { label: 'Simulator dock', click: toggleDock },
+    { label: 'Masti', click: () => each(o => o.sim.toggleMasti(clock())) },
+    { type: 'separator' },
+    { label: 'Come to my cursor', type: 'checkbox', checked: prefs.comeOver,
+      click: item => { prefs.comeOver = item.checked; savePrefs(); if (!prefs.comeOver) each(goHome); refreshTray(); } },
+    { label: 'Start on login', type: 'checkbox', checked: existsSync(AUTOSTART),
+      click: item => { setAutostart(item.checked); refreshTray(); } },
+    { type: 'separator' },
+    { label: 'Quit Claude Bot', click: () => app.quit() },
+  ]));
+}
+function createTray() {
+  try {
+    tray = new Tray(join(here, 'icon.png'));
+    tray.setToolTip('Claude Bot');
+    tray.on('click', () => setHidden(!prefs.hidden)); // left click: show/hide; right click: the menu
+    refreshTray();
+  } catch (err) {
+    console.error('no tray (the octos still work; quit with pkill):', err.message);
+  }
 }
 
 // The simulator dock: a normal window, hidden until a badge is clicked; closing just hides it.
@@ -433,6 +519,8 @@ ipcMain.on('octo:play', (e, name) => {
 ipcMain.handle('dock:moves', e => (fromDock(e) ? MOVE_NAMES : []));
 
 app.whenReady().then(() => {
+  loadPrefs();
+  createTray();
   syncOctos([]); // the home octo, until the bridge reports sessions
   startCursorHelper();
   connectBridge();
@@ -443,5 +531,5 @@ app.whenReady().then(() => {
 });
 app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => { globalShortcut.unregisterAll(); cursorHelper?.stdin.end(); });
-// octos come and go with sessions; the app ends when it's quit (pkill, later the tray's Quit)
+// octos come and go with sessions; the app ends only through the tray's Quit (or a signal)
 app.on('window-all-closed', () => {});
