@@ -49,7 +49,8 @@ function loadPositions() {
 const placeKey = o => (o.key === HOME ? HOME : o.label.replace(/ #\d+$/, '')); // per project folder
 
 function createOcto(key, label, slot) {
-  const o = { key, label, doing: null, sim: createSimulator(), box: NOMINAL_OCTO, extras: [], shaper: null, picked: null };
+  const o = { key, label, doing: null, sim: createSimulator(), box: NOMINAL_OCTO, extras: [], shaper: null, picked: null,
+    away: false, home: null, attentionId: 0, travel: null };
   const displays = screen.getAllDisplays();
   const saved = loadPositions()[placeKey(o)];
   let pos = fromSaved(saved, o.box, displays, screen.getPrimaryDisplay().id);
@@ -99,10 +100,99 @@ function syncOctos(sessions) {
     const o = octos.get(s.id) ?? createOcto(s.id, s.project, slot);
     o.label = s.project;
     o.doing = s.doing;
+    attend(o, s);
     if (s.id !== HOME && isNum(s.pressure, 0, 100) && clock() >= manualUntil) o.sim.feed(s.pressure);
   });
   const keep = new Set(wanted.map(s => s.id));
   for (const o of [...octos.values()]) if (!keep.has(o.key)) closeOcto(o);
+}
+
+// ---- attention (Saud 2026-11-23): a session needing permission, or done, calls its octo to the cursor ----
+const TRAVEL_MS = 700;
+let cursorHelper = null;
+let cursorWaiters = [];
+function startCursorHelper() {
+  try {
+    cursorHelper = spawn('python3', ['-I', join(here, 'cursor.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
+  } catch (err) {
+    console.error('cursor helper unavailable:', err.message);
+    return;
+  }
+  let buf = '';
+  cursorHelper.stdout.on('data', chunk => {
+    buf += chunk;
+    for (let i; (i = buf.indexOf('\n')) >= 0; buf = buf.slice(i + 1)) {
+      const m = /^(-?\d+) (-?\d+)$/.exec(buf.slice(0, i));
+      cursorWaiters.shift()?.(m ? { x: +m[1], y: +m[2] } : null);
+    }
+  });
+  cursorHelper.stdin.on('error', () => {});
+  cursorHelper.on('error', err => console.error('cursor.py did not start:', err.message));
+  cursorHelper.on('exit', code => {
+    cursorHelper = null;
+    for (const w of cursorWaiters.splice(0)) w(null);
+    if (code && !quitting) console.error(`cursor.py exited (${code}); octos will react in place`);
+  });
+}
+function askCursor() { // { x, y } in screen pixels, or null (no helper / KWin didn't answer)
+  if (!cursorHelper) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const done = v => { clearTimeout(t); resolve(v); };
+    const t = setTimeout(() => { cursorWaiters = cursorWaiters.filter(w => w !== done); resolve(null); }, 1500);
+    cursorWaiters.push(done);
+    cursorHelper.stdin.write('?\n');
+  });
+}
+
+function glide(o, to, then) { // move the window there over TRAVEL_MS, legs flailing
+  clearInterval(o.travel);
+  if (o.win.isDestroyed()) return;
+  const [fx, fy] = o.win.getPosition();
+  const start = performance.now();
+  o.win.webContents.send('octo:travel', true);
+  o.travel = setInterval(() => {
+    if (o.win.isDestroyed()) return clearInterval(o.travel);
+    const k = Math.min(1, (performance.now() - start) / TRAVEL_MS);
+    const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2; // ease in-out
+    o.win.setPosition(Math.round(fx + (to.x - fx) * e), Math.round(fy + (to.y - fy) * e));
+    if (k === 1) {
+      clearInterval(o.travel);
+      o.travel = null;
+      o.win.webContents.send('octo:travel', false);
+      then?.();
+    }
+  }, 16);
+}
+
+async function comeOver(o, kind) {
+  const cursor = await askCursor();
+  if (o.win.isDestroyed()) return;
+  const move = kind === 'done' ? 'flipJump' : 'jump';
+  if (!cursor) return o.win.webContents.send('octo:play', move); // can't find the cursor: react in place
+  if (!o.away) {
+    const [x, y] = o.win.getPosition();
+    o.home = { x, y };
+    o.away = true;
+  }
+  // beside the cursor, not under it; octos already waiting there line up to the right
+  const slot = [...octos.values()].filter(other => other.away && other !== o).length;
+  const want = { x: cursor.x + 32 + slot * (o.box.width + 12) - o.box.x, y: cursor.y - Math.round(o.box.height * 0.6) - o.box.y };
+  const area = nearestDisplay({ x: cursor.x, y: cursor.y, width: 1, height: 1 }, screen.getAllDisplays()).workArea;
+  glide(o, clampOcto(want, o.box, area), () => o.win.webContents.send('octo:play', move));
+}
+
+function goHome(o) {
+  if (!o.away) return;
+  o.away = false;
+  if (o.home) glide(o, o.home);
+}
+
+function attend(o, s) {
+  const allowed = { permission: 'come_for_permission', done: 'come_when_done' }[s.attention];
+  if (s.attention && s.attention_id !== o.attentionId) {
+    o.attentionId = s.attention_id;
+    if (bridge.config?.attention?.[allowed] !== false) comeOver(o, s.attention);
+  } else if (!s.attention && o.away) goHome(o);
 }
 
 // The simulator dock: a normal window, hidden until a badge is clicked; closing just hides it.
@@ -220,7 +310,8 @@ function applyCommand(m) {
 }
 
 const isSession = s => s && typeof s.id === 'string' && s.id.length <= 64 && typeof s.project === 'string'
-  && s.project.length <= 48 && (s.doing === null || typeof s.doing === 'string') && isNum(s.pressure, 0, 100);
+  && s.project.length <= 48 && (s.doing === null || typeof s.doing === 'string') && isNum(s.pressure, 0, 100)
+  && [null, 'permission', 'done'].includes(s.attention ?? null) && isInt(s.attention_id ?? 0, 0, 1e9);
 
 function connectBridge() {
   if (quitting) return;
@@ -302,9 +393,16 @@ ipcMain.on('octo:region', (e, region) => {
 });
 ipcMain.on('octo:move', (e, x, y) => {
   const o = octoOf(e);
+  if (o) { clearInterval(o.travel); o.travel = null; } // the user's drag wins over a glide
   if (o && isInt(x, -1e5, 1e5) && isInt(y, -1e5, 1e5)) o.win.setPosition(x, y);
 });
-ipcMain.on('octo:drop', e => { const o = octoOf(e); if (o) settle(o, true); });
+ipcMain.on('octo:drop', e => {
+  const o = octoOf(e);
+  if (!o) return;
+  o.away = false; // dropped somewhere by hand: that's its home now
+  settle(o, true);
+});
+ipcMain.on('octo:clicked', e => { const o = octoOf(e); if (o) goHome(o); }); // "seen it": go back
 ipcMain.on('dock:toggle', e => { if (octoOf(e)) toggleDock(); });
 
 // the dock is a test tool: it drives every octo
@@ -336,6 +434,7 @@ ipcMain.handle('dock:moves', e => (fromDock(e) ? MOVE_NAMES : []));
 
 app.whenReady().then(() => {
   syncOctos([]); // the home octo, until the bridge reports sessions
+  startCursorHelper();
   connectBridge();
   for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, () => each(settle));
   // Under XWayland this only fires while an X11 window has focus; the bridge's POST /masti
@@ -343,6 +442,6 @@ app.whenReady().then(() => {
   if (!globalShortcut.register(MASTI_KEY, () => each(o => o.sim.toggleMasti(clock())))) console.error(`could not register ${MASTI_KEY}`);
 });
 app.on('before-quit', () => { quitting = true; });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => { globalShortcut.unregisterAll(); cursorHelper?.stdin.end(); });
 // octos come and go with sessions; the app ends when it's quit (pkill, later the tray's Quit)
 app.on('window-all-closed', () => {});

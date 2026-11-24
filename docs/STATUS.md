@@ -11,6 +11,30 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
 
+## Attention: the octo comes to the cursor (Claude, 2026-11-24)
+
+Saud's step 2: when a session needs permission, or finishes, its octo comes to the user.
+- **Cursor under Wayland:** `app/cursor.py` (system python3: dbus-python + PyGObject, already installed)
+  owns `org.claudebot.Cursor` on the session bus; per question it loads a one-line KWin script that
+  calls back with `workspace.cursorPos`, then unloads it. On demand only (≈ 23 ms), no tracking.
+  Found on the way: KWin's `loadScript` has a 1- and a 2-argument version; dbus-python needs `signature="ss"`.
+- **Bridge** (`sessions.py`, 3 new tests): `PermissionRequest` (and the `permission_prompt` notification
+  that echoes it) → attention `permission` until the session's next real action (answered either way);
+  `Stop` → attention `done` for 8 s; a new prompt ends it early; every permission request is a new episode
+  (a test caught that a second request after a dismissed one didn't call the octo back). Each episode has
+  an id. The hook now sends the notification **type** (never its message) and is registered for
+  PermissionRequest; it prints nothing, so it can never answer a permission (tested: empty stdout).
+- **Electron:** new episode → ask the cursor → glide the window (0.7 s, eased, legs flailing) to just
+  right of the cursor (several waiting octos line up), jump (flipJump when done). Goes home when the
+  episode ends, or when clicked ("seen it"); a drag makes the new spot home. No cursor → reacts in place.
+- `config.json` → `"attention": {"come_for_permission": true, "come_when_done": true}` to switch either off.
+- Checked live (real bridge, fake sessions through the real hook script, real cursor): permission → came
+  from (1416, 704) to beside the cursor, waited, went home when answered; done → came over, home after 8 s
+  (`docs/img/attention-done.png`); click → home; two sessions → lined up side by side. Installer re-run
+  (backup `settings.json.bak-claude-bot-20261124-195428`); helper, KWin script and temp file all cleaned up.
+- Not yet: knowing whether the session's terminal is already in front (then it needn't come); fractional
+  display scaling untested (this laptop runs at 100 %).
+
 ## One octo per Claude Code session (Claude, 2026-11-24)
 
 Saud's purpose for the bot, built: every running Claude Code session gets its own octo, labelled with its

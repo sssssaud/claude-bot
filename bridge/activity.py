@@ -17,7 +17,7 @@ WEIGHTS = {"Edit": 3, "Write": 3, "MultiEdit": 3, "NotebookEdit": 3, "Bash": 2,
            "Read": 1, "Grep": 1, "Glob": 1, "WebSearch": 1, "WebFetch": 1}
 WEB_TOOLS = {"WebSearch", "WebFetch"}
 EVENTS = {"UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Stop",
-          "SubagentStart", "SubagentStop", "Notification", "SessionStart", "SessionEnd"}
+          "SubagentStart", "SubagentStop", "Notification", "SessionStart", "SessionEnd", "PermissionRequest"}
 
 
 class Activity:

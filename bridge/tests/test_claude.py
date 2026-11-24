@@ -135,3 +135,16 @@ def test_config_falls_back_to_defaults(tmp_path):
     assert t["cpu_temp_alert"] == 85 and t["ram_percent_alert"] == 90
     (tmp_path / "bad.json").write_text("{not json")
     assert load_config(tmp_path / "bad.json")["thresholds"] == DEFAULT_THRESHOLDS
+
+
+def test_hook_sends_the_notification_kind_but_never_the_message():
+    hook = load("claude_hook")
+    out = hook.summarize({"hook_event_name": "Notification", "notification_type": "permission_prompt",
+                          "message": "Claude needs your permission to use Bash: rm secret.txt"})
+    assert out == {"event": "Notification", "kind": "permission_prompt"}
+
+
+def test_config_attention_flags(tmp_path):
+    (tmp_path / "c.json").write_text('{"attention": {"come_when_done": false, "come_for_permission": "yes"}}')
+    a = load_config(tmp_path / "c.json")["attention"]
+    assert a == {"come_for_permission": True, "come_when_done": False}, "bad value falls back to the default"

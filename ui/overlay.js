@@ -18,6 +18,7 @@ window.__companion = companion;
 bridge.onState(state => { window.__state = state; companion.update(state); }); // __state: dev handle
 bridge.onPlay(name => octo.play(name));
 bridge.onNotice(text => companion.notify(text)); // e.g. a quick control failed
+bridge.onTravel(on => octo.setDragging(on)); // legs flail while it glides to the cursor, bounce on arrival
 
 const DRAG_PX = 4; // less movement than this between press and release is a click
 let press = null;
@@ -43,6 +44,7 @@ const release = e => {
   else if (e.type === 'pointerup') {
     octo.play('turnAround');
     companion.togglePopup();
+    bridge.clicked(); // if it came over to call you: seen, go back
   }
   press = null;
 };

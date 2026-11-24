@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Claude Code hook → claude-bot bridge. Registered for UserPromptSubmit, PreToolUse, PostToolUse,
-PostToolUseFailure, Stop, SubagentStart, SubagentStop, Notification, SessionStart and SessionEnd
+PostToolUseFailure, Stop, SubagentStart, SubagentStop, Notification, SessionStart, SessionEnd and
+PermissionRequest. Prints nothing, so it can never answer a permission request (that needs a JSON decision on stdout)
 (see hooks/README.md).
 
 Rules: never slow Claude Code (0.3 s budget, bridge down = instant refusal), always exit 0, never
@@ -35,6 +36,8 @@ def summarize(p: dict) -> dict:
     folder = os.path.basename(p["cwd"].rstrip("/")) if isinstance(p.get("cwd"), str) else ""
     if folder:
         ev["project"] = folder[:40]  # the folder's name only, never the path
+    if ev["event"] == "Notification" and isinstance(p.get("notification_type"), str):
+        ev["kind"] = p["notification_type"][:40]  # e.g. permission_prompt, idle_prompt (never the message)
     if isinstance(p.get("agent_id"), str):
         ev["agent"] = p["agent_id"][:64]
     return ev

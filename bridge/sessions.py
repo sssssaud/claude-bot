@@ -9,6 +9,9 @@ from typing import Optional, Tuple
 from .activity import Activity
 
 MAX_SESSIONS = 6  # more octos than this would bury the screen; the least recently active one goes
+DONE_S = 8.0  # a finished turn calls the octo over for this long
+# Attention (Saud 2026-11-23): the octo comes to the cursor when its session needs a permission, and
+# when a turn is done. A permission episode ends with the session's next action (answered either way).
 STALE_S = 30 * 60  # no event for 30 min: the session crashed or was closed without SessionEnd
 TOOL_DOING = {"Edit": "Editing", "Write": "Editing", "MultiEdit": "Editing", "NotebookEdit": "Editing",
               "Bash": "Running a command", "Read": "Reading code", "Grep": "Reading code", "Glob": "Reading code",
@@ -23,6 +26,8 @@ def doing_for(ev: dict) -> Optional[str]:
         return TOOL_DOING.get(ev.get("tool") or "", "Working")
     if kind == "PostToolUseFailure":
         return "Stopped" if ev.get("interrupt") else "Hit an error"
+    if kind == "PermissionRequest" or (kind == "Notification" and ev.get("kind") == "permission_prompt"):
+        return f"Needs permission: {ev['tool']}" if ev.get("tool") else "Needs permission"
     return {"UserPromptSubmit": "Thinking", "PostToolUse": "Thinking", "SubagentStart": "Sub-agents working",
             "Notification": "Needs you", "Stop": "Done", "SessionStart": "Ready"}.get(kind)
 
@@ -42,14 +47,34 @@ class Sessions:
             if len(self.by_id) >= MAX_SESSIONS:
                 oldest = min(self.by_id, key=lambda k: self.by_id[k]["seen"])
                 del self.by_id[oldest]
-            s = self.by_id[sid] = {"activity": Activity(), "project": "Claude Code", "doing": "Ready", "seen": now, "since": now}
+            s = self.by_id[sid] = {"activity": Activity(), "project": "Claude Code", "doing": "Ready", "seen": now, "since": now,
+                                   "attention": None, "attention_at": 0.0, "attention_id": 0}
         s["seen"] = now
         if ev.get("project"):
             s["project"] = ev["project"]
         doing = doing_for(ev)
         if doing:
             s["doing"] = doing
+        self._attend(s, ev, now)
         return sid, s["activity"].feed(ev, now)
+
+    @staticmethod
+    def _attend(s: dict, ev: dict, now: float):
+        kind = ev["event"]
+        if kind == "PermissionRequest" or (kind == "Notification" and ev.get("kind") == "permission_prompt"):
+            want = "permission"
+        elif kind == "Stop":
+            want = "done"
+        elif kind in ("Notification", "SubagentStart", "SubagentStop"):
+            return  # side events: they don't answer a permission
+        else:
+            want = None  # the session moved on, so a pending permission was answered
+        # a new episode (the octo comes over again): a new kind, or another permission request (a new
+        # question, even if the last one was dismissed); the notification that echoes a request is not
+        if (want and want != s["attention"]) or kind == "PermissionRequest":
+            s["attention_id"] += 1
+            s["attention_at"] = now
+        s["attention"] = want  # any real activity ends the episode: answered, or a new prompt after "done"
 
     def live(self, now: float, system_load: float = 0.0) -> list:
         """Every live session, oldest first: id, label, pressure, doing. Drops stale ones."""
@@ -59,6 +84,9 @@ class Sessions:
         for sid, s in sorted(self.by_id.items(), key=lambda kv: kv[1]["since"]):
             n = seen_labels[s["project"]] = seen_labels.get(s["project"], 0) + 1
             label = s["project"] if n == 1 else f"{s['project']} #{n}"  # two sessions in one folder
+            if s["attention"] == "done" and now - s["attention_at"] > DONE_S:
+                s["attention"] = None
             out.append({"id": sid, "project": label, "doing": s["doing"],
-                        "pressure": round(s["activity"].pressure(now, system_load), 1)})
+                        "pressure": round(s["activity"].pressure(now, system_load), 1),
+                        "attention": s["attention"], "attention_id": s["attention_id"]})
         return out

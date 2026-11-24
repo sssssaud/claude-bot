@@ -57,3 +57,48 @@ def test_missing_session_id_still_works():
     s = Sessions()
     sid, _ = s.feed({"event": "Stop"}, 0)
     assert sid == "default" and s.live(0)[0]["project"] == "Claude Code"
+
+
+def att(s, now):
+    x = s.live(now)[0]
+    return x["attention"], x["attention_id"], x["doing"]
+
+
+def test_permission_calls_the_octo_until_answered():
+    s = Sessions()
+    s.feed(ev("PreToolUse", tool="Bash"), 0)
+    assert att(s, 0)[0] is None
+    s.feed(ev("PermissionRequest", tool="Bash"), 1)
+    assert att(s, 1) == ("permission", 1, "Needs permission: Bash")
+    s.feed(ev("Notification", kind="permission_prompt"), 2)  # Claude Code also notifies: same episode
+    s.feed(ev("SubagentStop"), 3)  # a side event doesn't answer it
+    assert att(s, 3)[:2] == ("permission", 1)
+    assert att(s, 600)[0] == "permission", "waits as long as it takes"
+    s.feed(ev("PostToolUse", tool="Bash"), 601)  # answered (allowed): the octo can go home
+    assert att(s, 601)[0] is None
+    s.feed(ev("PermissionRequest", tool="Edit"), 700)
+    assert att(s, 700)[:2] == ("permission", 2), "a new request is a new episode"
+    s.feed(ev("PermissionRequest", tool="Write"), 700.5)
+    assert att(s, 700.5)[:2] == ("permission", 3), "so is a second request while the first is still open"
+    s.feed(ev("PostToolUseFailure", tool="Edit"), 701)  # denied: also answered
+    assert att(s, 701)[0] is None
+
+
+def test_done_calls_the_octo_for_a_few_seconds():
+    from bridge.sessions import DONE_S
+    s = Sessions()
+    s.feed(ev("Stop"), 10)
+    assert att(s, 10)[:2] == ("done", 1)
+    assert att(s, 10 + DONE_S - 0.1)[0] == "done"
+    assert att(s, 10 + DONE_S + 0.1)[0] is None
+    s.feed(ev("UserPromptSubmit"), 30)
+    s.feed(ev("Stop"), 40)
+    assert att(s, 40)[:2] == ("done", 2), "every finished turn is a new episode"
+    s.feed(ev("UserPromptSubmit"), 41)
+    assert att(s, 41)[0] is None, "a new prompt sends it home early"
+
+
+def test_idle_notification_is_not_a_permission():
+    s = Sessions()
+    s.feed(ev("Notification", kind="idle_prompt"), 0)
+    assert att(s, 0) == (None, 0, "Needs you")

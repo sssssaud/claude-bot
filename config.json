@@ -5,5 +5,9 @@
     "ram_percent_alert": 90,
     "tokens_warning_percent": 80,
     "tokens_critical_percent": 95
+  },
+  "attention": {
+    "come_for_permission": true,
+    "come_when_done": true
   }
 }

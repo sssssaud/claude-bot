@@ -60,5 +60,5 @@ Still to come: `./setup.sh` (dnf deps), `./run.sh` (bridge + Electron), `pytest 
 - Blockers: none. Open: AW-ELC flash-write question (Phase 4).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - 2026-11-23: agy's Phase 4a reviewed + fixed; Claude Code hooks + token usage built and tested (`hooks/`), installed 2026-11-23 (undo: `python3 hooks/install.py --uninstall`). Start everything with `./run.sh`.
-- 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Next: Saud picks (attention at the cursor / keyboard RGB / tray + Quit).
+- 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, app/cursor.py via KWin script). Next: Saud picks (keyboard RGB / tray + Quit / voice → text).
 - Save-file: `docs/STATUS.md`. Handover for another agent: `HANDOVER.md` (2026-11-21, Claude weekly quota at 86 %).

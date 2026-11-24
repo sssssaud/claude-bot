@@ -35,29 +35,39 @@ CONTROLS_REFRESH_S = 10.0  # pick up changes made outside the bot (KDE tray, key
 TOOL_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 AGENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 SESSION_ID = AGENT_ID
+NOTIFY_KIND = re.compile(r"^[a-z_]{1,40}$")
 PROJECT = re.compile(r"^[^/\\\x00-\x1f]{1,40}$")  # a folder name, never a path
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
+DEFAULT_ATTENTION = {"come_for_permission": True, "come_when_done": True}
 DEFAULT_THRESHOLDS = {"cpu_temp_alert": 90, "gpu_temp_alert": 83, "ram_percent_alert": 90,
                       "tokens_warning_percent": 80, "tokens_critical_percent": 95}
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
     """Thresholds from config.json; a missing file or a bad value falls back to the default, loudly."""
-    thresholds = dict(DEFAULT_THRESHOLDS)
+    thresholds, attention = dict(DEFAULT_THRESHOLDS), dict(DEFAULT_ATTENTION)
     try:
-        raw = json.loads(path.read_text()).get("thresholds", {})
+        cfg = json.loads(path.read_text())
+        raw = cfg.get("thresholds", {})
+        raw_attention = cfg.get("attention", {})
     except FileNotFoundError:
-        return {"thresholds": thresholds}
+        return {"thresholds": thresholds, "attention": attention}
     except (json.JSONDecodeError, AttributeError) as e:
         log.error("config.json unreadable (%s): using defaults", e)
-        return {"thresholds": thresholds}
+        return {"thresholds": thresholds, "attention": attention}
+    for key in DEFAULT_ATTENTION:
+        if key in raw_attention:
+            if isinstance(raw_attention[key], bool):
+                attention[key] = raw_attention[key]
+            else:
+                log.error("config.json: attention.%s must be true or false; using default", key)
     for key in DEFAULT_THRESHOLDS:
         if key in raw:
             try:
                 thresholds[key] = number(raw, key, 1, 120)
             except BadRequest as e:
                 log.error("config.json: %s; using default %s", e, DEFAULT_THRESHOLDS[key])
-    return {"thresholds": thresholds}
+    return {"thresholds": thresholds, "attention": attention}
 
 
 class BadRequest(ValueError):
@@ -215,7 +225,8 @@ class BridgeApp:
         if data.get("event") not in EVENTS:
             raise BadRequest("unknown 'event'")
         ev = {"event": data["event"], "tool": optional(data, "tool", TOOL_NAME), "agent": optional(data, "agent", AGENT_ID),
-              "session": optional(data, "session", SESSION_ID), "project": optional(data, "project", PROJECT)}
+              "session": optional(data, "session", SESSION_ID), "project": optional(data, "project", PROJECT),
+              "kind": optional(data, "kind", NOTIFY_KIND)}
         for key in ("interrupt", "risky"):
             if key in data:
                 ev[key] = flag(data, key)
