@@ -439,8 +439,9 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
   function aim(look) {
     if (!look || !octo) return scene.setLook(0, 0, 0);
-    const dx = look.fx * screen.width - (window.screenX + octo.x + octo.width / 2);
-    const dy = look.fy * screen.height - (window.screenY + octo.y + octo.height / 2);
+    // { x, y } screen pixels (the session's terminal) or { fx, fy } screen fractions (the dock's test target)
+    const dx = (look.x ?? look.fx * screen.width) - (window.screenX + octo.x + octo.width / 2);
+    const dy = (look.y ?? look.fy * screen.height) - (window.screenY + octo.y + octo.height / 2);
     const nx = Math.max(-1, Math.min(1, dx / 500));
     const ny = Math.max(-1, Math.min(1, dy / 400));
     scene.setLook(0.44 * nx, 0.9 * nx, -0.6 * ny);

@@ -48,12 +48,13 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
 - 2026-11-22 agy: step 1 + 2 (bridge, popup, toasts), `99d4710`.
 - 2026-11-23 Claude: reviewed and fixed 4a (`06b83a5`); step 3 built and tested (activity engine,
   hooks, status line wrapper, token row + alerts, installer); installed with Saud's OK, live.
-  Remaining: step 4 (real terminal position) and step 5.
+  Remaining: step 5 (packaging/setup, props, beauty pass).
 - 2026-11-23 Saud's vision (docs/STATUS.md): one octo per Claude Code session is the core purpose;
   later attention (permission → octo to the cursor) and voice → text (no text-to-speech, ever).
 - 2026-11-24 Claude: emotes moved onto the 3D octo (sticker removed); one octo per session built + live.
 - 2026-11-24 Claude: attention built (octo comes to the cursor on PermissionRequest / Stop; cursor via app/cursor.py).
 - 2026-11-24 Claude: tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit), single-instance lock.
+- 2026-11-24 Claude: eyes follow the real terminal (hook sends parent pids; app/cursor.py became app/kwin.py).
 
 ## What's next (Saud's revised order, 2026-11-21; details in docs/STATUS.md "Saud's additions")
 

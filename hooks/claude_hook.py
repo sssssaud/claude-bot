@@ -6,7 +6,8 @@ PermissionRequest. Prints nothing, so it can never answer a permission request (
 
 Rules: never slow Claude Code (0.3 s budget, bridge down = instant refusal), always exit 0, never
 print to stdout (for some events Claude Code reads stdout as instructions). Privacy: only the event
-name, the tool name, yes/no flags, the session id and the project folder's NAME leave this script. A Bash command is checked for risky
+name, the tool name, yes/no flags, the session id, the project folder's NAME and the parent process ids (to find the
+terminal window) leave this script. A Bash command is checked for risky
 patterns here; its text is never sent. Standard library only.
 """
 import json
@@ -17,6 +18,25 @@ import urllib.error
 import urllib.request
 
 URL = "http://127.0.0.1:8765/event"
+MAX_PIDS = 8
+
+
+def ancestors(pid: int) -> list:
+    """Process ids above `pid` (its parent first), up to systemd. The app finds the session's terminal
+    window among them (the eyes look at it). Only numbers leave; /proc reads, no subprocess."""
+    out = []
+    while pid > 1 and len(out) < MAX_PIDS:
+        try:
+            with open(f"/proc/{pid}/stat") as f:
+                stat = f.read()
+        except OSError:
+            break
+        name = stat[stat.index("(") + 1: stat.rindex(")")]
+        if name == "systemd":
+            break
+        out.append(pid)
+        pid = int(stat[stat.rindex(")") + 2:].split()[1])  # field 4: ppid
+    return out
 TIMEOUT_S = 0.3
 RISKY = re.compile(r"\brm\s+-\w*(rf|fr)\w*\b|\bgit\s+push\b.*(--force\b|\s-f\b)|\bsudo\b")
 
@@ -40,6 +60,9 @@ def summarize(p: dict) -> dict:
         ev["kind"] = p["notification_type"][:40]  # e.g. permission_prompt, idle_prompt (never the message)
     if isinstance(p.get("agent_id"), str):
         ev["agent"] = p["agent_id"][:64]
+    pids = ancestors(os.getppid())
+    if pids:
+        ev["pids"] = pids
     return ev
 
 

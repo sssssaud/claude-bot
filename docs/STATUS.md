@@ -283,7 +283,7 @@ agy built 4a (`99d4710`); reviewed against HANDOVER.md before continuing. Found 
    any screen edge while the empty part of the window hangs off-screen.
 
 ## Saud's additions (2026-11-20)
-1. **Eyes always look at the terminal** (replaces the spec's cursor `lookAt`). ✅ Phase 3c:
+1. **Eyes always look at the terminal** (replaces the spec's cursor `lookAt`). ✅ real terminal 2026-11-24; Phase 3c:
    "look at a screen point" (eyes shift, body yaws up to ±25°) driven by a fake terminal position
    from the dock. Phase 4: the bridge finds the real terminal. Wayland apps can't see other windows,
    so a small KWin script reports the window of the terminal that runs Claude Code (its process →
@@ -306,6 +306,24 @@ Feasibility, checked 2026-11-21 on this laptop (no root needed for any of it):
   backlight is not writable without root, so not that.
 - Bluetooth: `bluetoothctl` (adapter powered). Wi-Fi: `nmcli`. Battery: `upower` / psutil.
 - GPU numbers only while the RTX 3050 is awake; when asleep the popup says so (reading it wakes it).
+
+## Eyes on the real terminal (Claude, 2026-11-24)
+
+Saud's first request (2026-11-20), now real: each octo looks at its own session's terminal window.
+- Hook sends its parent process ids (`/proc` reads, numbers only; ≤ 8, up to systemd). Saud's sessions
+  run `claude ← bash ← kitty`. Bridge validates and keeps the latest chain per session (2 tests).
+- `app/cursor.py` → `app/kwin.py`: one helper, two questions: `?` (cursor) and `win <pids>` (first normal
+  window owned by the closest pid: x, y, w, h, minimised), answered as JSON text over D-Bus.
+- Electron re-checks every 3 s; look target = window centre, or straight down at the taskbar when the
+  window is minimised. The dock's look map still overrides (test tool).
+- **Bug fixed on the way:** a timed-out helper question was dropped from the queue, so its late answer
+  went to the next question; with two question types a cursor reply could be read as a window.
+- Checked live: this chat's octo found the real kitty window on its own; with a test window of my own
+  (not Saud's windows) the gaze followed it, dropped to the taskbar when minimised and came back when
+  restored; screenshot shows the octo turned toward it. Cost: ~1 ms of KWin time per lookup (0.07 % of a
+  core for 2 octos, 0.2 % for 6). In auto mode no permission attention fired during many commands.
+- Limits: one kitty process with several OS windows can't be told apart; tmux / ssh sessions have no
+  window (octo looks ahead).
 
 ## Keyboard RGB removed (Saud, 2026-11-24)
 

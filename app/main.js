@@ -55,7 +55,7 @@ const placeKey = o => (o.key === HOME ? HOME : o.label.replace(/ #\d+$/, '')); /
 
 function createOcto(key, label, slot) {
   const o = { key, label, doing: null, sim: createSimulator(), box: NOMINAL_OCTO, extras: [], shaper: null, picked: null,
-    away: false, home: null, attentionId: 0, travel: null };
+    away: false, home: null, attentionId: 0, travel: null, pids: [], look: null };
   const displays = screen.getAllDisplays();
   const saved = loadPositions()[placeKey(o)];
   let pos = fromSaved(saved, o.box, displays, screen.getPrimaryDisplay().id);
@@ -105,6 +105,7 @@ function syncOctos(sessions) {
     const o = octos.get(s.id) ?? createOcto(s.id, s.project, slot);
     o.label = s.project;
     o.doing = s.doing;
+    if (Array.isArray(s.pids) && s.pids.join() !== o.pids.join()) { o.pids = s.pids; refreshLook(o); }
     attend(o, s);
     if (s.id !== HOME && isNum(s.pressure, 0, 100) && clock() >= manualUntil) o.sim.feed(s.pressure);
   });
@@ -114,39 +115,67 @@ function syncOctos(sessions) {
 
 // ---- attention (Saud 2026-11-23): a session needing permission, or done, calls its octo to the cursor ----
 const TRAVEL_MS = 700;
-let cursorHelper = null;
-let cursorWaiters = [];
-function startCursorHelper() {
+// app/kwin.py answers what only KWin knows under Wayland: the cursor, and a session's terminal window.
+let kwin = null;
+let kwinWaiters = []; // one per question, answered strictly in order
+function startKwinHelper() {
   try {
-    cursorHelper = spawn('python3', ['-I', join(here, 'cursor.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
+    kwin = spawn('python3', ['-I', join(here, 'kwin.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
   } catch (err) {
-    console.error('cursor helper unavailable:', err.message);
+    console.error('kwin helper unavailable:', err.message);
     return;
   }
   let buf = '';
-  cursorHelper.stdout.on('data', chunk => {
+  kwin.stdout.on('data', chunk => {
     buf += chunk;
-    for (let i; (i = buf.indexOf('\n')) >= 0; buf = buf.slice(i + 1)) {
-      const m = /^(-?\d+) (-?\d+)$/.exec(buf.slice(0, i));
-      cursorWaiters.shift()?.(m ? { x: +m[1], y: +m[2] } : null);
-    }
+    for (let i; (i = buf.indexOf('\n')) >= 0; buf = buf.slice(i + 1)) kwinWaiters.shift()?.(buf.slice(0, i));
   });
-  cursorHelper.stdin.on('error', () => {});
-  cursorHelper.on('error', err => console.error('cursor.py did not start:', err.message));
-  cursorHelper.on('exit', code => {
-    cursorHelper = null;
-    for (const w of cursorWaiters.splice(0)) w(null);
-    if (code && !quitting) console.error(`cursor.py exited (${code}); octos will react in place`);
+  kwin.stdin.on('error', () => {});
+  kwin.on('error', err => console.error('kwin.py did not start:', err.message));
+  kwin.on('exit', code => {
+    kwin = null;
+    for (const w of kwinWaiters.splice(0)) w(null);
+    if (code && !quitting) console.error(`kwin.py exited (${code}); octos react in place and look ahead`);
   });
 }
-function askCursor() { // { x, y } in screen pixels, or null (no helper / KWin didn't answer)
-  if (!cursorHelper) return Promise.resolve(null);
+function askKwin(question) { // the answer line, or null
+  if (!kwin) return Promise.resolve(null);
   return new Promise(resolve => {
-    const done = v => { clearTimeout(t); resolve(v); };
-    const t = setTimeout(() => { cursorWaiters = cursorWaiters.filter(w => w !== done); resolve(null); }, 1500);
-    cursorWaiters.push(done);
-    cursorHelper.stdin.write('?\n');
+    let settled = false;
+    const finish = v => { if (!settled) { settled = true; clearTimeout(t); resolve(v); } };
+    // on a timeout the waiter stays queued: the late answer is still consumed by it, so the next
+    // question never receives this one's answer (they used to get out of step)
+    const t = setTimeout(() => finish(null), 1500);
+    kwinWaiters.push(finish);
+    kwin.stdin.write(`${question}\n`);
   });
+}
+async function askCursor() { // { x, y } in screen pixels, or null
+  const m = /^(-?\d+) (-?\d+)$/.exec((await askKwin('?')) ?? '');
+  return m ? { x: +m[1], y: +m[2] } : null;
+}
+async function askWindow(pids) { // the session's terminal window { x, y, w, h, min }, or null
+  const answer = await askKwin(`win ${pids.join(' ')}`);
+  let w;
+  try {
+    w = JSON.parse(answer);
+  } catch {
+    return null; // "none" (no window: tmux, ssh, headless) or no answer
+  }
+  const ok = w && isInt(w.x, -1e5, 1e5) && isInt(w.y, -1e5, 1e5) && isInt(w.w, 1, 1e5) && isInt(w.h, 1, 1e5) && typeof w.min === 'boolean';
+  return ok ? w : null;
+}
+
+// Eyes on the terminal (Saud 2026-11-20): each octo looks at its own session's terminal window; at its
+// taskbar spot when the window is minimised. Re-checked every few seconds (windows move).
+const LOOK_EVERY_MS = 3000;
+async function refreshLook(o) {
+  if (!o.pids.length || prefs.hidden || o.win.isDestroyed()) return;
+  const w = await askWindow(o.pids);
+  if (!w) { o.look = null; return; }
+  const cx = w.x + w.w / 2;
+  const area = nearestDisplay({ x: w.x, y: w.y, width: w.w, height: w.h }, screen.getAllDisplays());
+  o.look = { x: Math.round(cx), y: w.min ? area.bounds.y + area.bounds.height : Math.round(w.y + w.h / 2) };
 }
 
 function glide(o, to, then) { // move the window there over TRAVEL_MS, legs flailing
@@ -348,7 +377,7 @@ const clock = () => performance.now() / 1000;
 const TEMPS_OVERRIDE_S = 60; // the dock's fake temperatures win for a minute after the last slider move
 let fakeTemps = { cpu: 55, gpu: 50 };
 let fakeTempsUntil = -Infinity;
-let look = null; // { fx, fy }: where the terminal is, as fractions of the screen
+let dockLook = null; // { fx, fy }: a look target set by hand in the dock (test tool); wins over the real terminal
 const bridge = { ws: null, connected: false, telemetry: null, controls: null, usage: null, config: null, load: 0 };
 const MANUAL_S = 60; // the dock's pressure slider / masti / demo win over live data for a minute
 let manualUntil = -Infinity;
@@ -363,13 +392,13 @@ function currentTemps(now) {
 setInterval(() => {
   const now = clock();
   const shared = {
-    temps: currentTemps(now), look, bridge: bridge.connected,
+    temps: currentTemps(now), bridge: bridge.connected,
     telemetry: bridge.telemetry, controls: bridge.controls, usage: bridge.usage, config: bridge.config,
   };
   let first = null;
   for (const o of octos.values()) {
     if (o.win.isDestroyed()) continue;
-    const state = { ...o.sim.state(now), ...shared, label: o.label, doing: o.doing, emote: o.picked && now < o.picked.until ? o.picked.emote : null };
+    const state = { ...o.sim.state(now), ...shared, look: dockLook ?? o.look, label: o.label, doing: o.doing, emote: o.picked && now < o.picked.until ? o.picked.emote : null };
     o.win.webContents.send('sim:state', state);
     first ??= state;
   }
@@ -385,7 +414,7 @@ function applyCommand(m) {
   const isEmote = v => typeof v === 'string' && /^\d\d_[a-z_]+$/.test(v);
   if (m.cmd === 'masti') each(o => o.sim.toggleMasti(now));
   else if (m.cmd === 'pressure' && isNum(m.value, 0, 100)) each(o => o.sim.setPressure(m.value, now));
-  else if (m.cmd === 'look' && (m.look === null || (isNum(m.look?.fx, 0, 1) && isNum(m.look?.fy, 0, 1)))) look = m.look && { fx: m.look.fx, fy: m.look.fy };
+  else if (m.cmd === 'look' && (m.look === null || (isNum(m.look?.fx, 0, 1) && isNum(m.look?.fy, 0, 1)))) dockLook = m.look && { fx: m.look.fx, fy: m.look.fy };
   else if (m.cmd === 'emote' && isEmote(m.name) && isNum(m.duration, 0.5, 30)) each(o => { o.picked = { emote: m.name, until: now + m.duration }; });
   else if (m.cmd === 'react' && isEmote(m.emote)) { // a Claude Code moment: only that session's octo reacts
     const o = octos.get(m.session) ?? (octos.size === 1 ? [...octos.values()][0] : null);
@@ -397,7 +426,8 @@ function applyCommand(m) {
 
 const isSession = s => s && typeof s.id === 'string' && s.id.length <= 64 && typeof s.project === 'string'
   && s.project.length <= 48 && (s.doing === null || typeof s.doing === 'string') && isNum(s.pressure, 0, 100)
-  && [null, 'permission', 'done'].includes(s.attention ?? null) && isInt(s.attention_id ?? 0, 0, 1e9);
+  && [null, 'permission', 'done'].includes(s.attention ?? null) && isInt(s.attention_id ?? 0, 0, 1e9)
+  && (s.pids === undefined || (Array.isArray(s.pids) && s.pids.length <= 8 && s.pids.every(p => isInt(p, 2, 4194304))));
 
 function connectBridge() {
   if (quitting) return;
@@ -507,7 +537,7 @@ ipcMain.on('sim:emote', (e, name) => {
   if (fromDock(e) && typeof name === 'string' && /^\d\d_[a-z_]+$/.test(name)) each(o => { o.picked = { emote: name, until: clock() + 6 }; });
 });
 ipcMain.on('sim:look', (e, l) => {
-  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) look = l && { fx: l.fx, fy: l.fy };
+  if (fromDock(e) && (l === null || (isNum(l?.fx, 0, 1) && isNum(l?.fy, 0, 1)))) dockLook = l && { fx: l.fx, fy: l.fy };
 });
 ipcMain.on('controls:set', (e, type, value) => {
   const o = octoOf(e);
@@ -522,7 +552,8 @@ app.whenReady().then(() => {
   loadPrefs();
   createTray();
   syncOctos([]); // the home octo, until the bridge reports sessions
-  startCursorHelper();
+  startKwinHelper();
+  setInterval(() => each(refreshLook), LOOK_EVERY_MS);
   connectBridge();
   for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, () => each(settle));
   // Under XWayland this only fires while an X11 window has focus; the bridge's POST /masti
@@ -530,6 +561,6 @@ app.whenReady().then(() => {
   if (!globalShortcut.register(MASTI_KEY, () => each(o => o.sim.toggleMasti(clock())))) console.error(`could not register ${MASTI_KEY}`);
 });
 app.on('before-quit', () => { quitting = true; });
-app.on('will-quit', () => { globalShortcut.unregisterAll(); cursorHelper?.stdin.end(); });
+app.on('will-quit', () => { globalShortcut.unregisterAll(); kwin?.stdin.end(); });
 // octos come and go with sessions; the app ends only through the tray's Quit (or a signal)
 app.on('window-all-closed', () => {});

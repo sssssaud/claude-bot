@@ -227,6 +227,12 @@ class BridgeApp:
         ev = {"event": data["event"], "tool": optional(data, "tool", TOOL_NAME), "agent": optional(data, "agent", AGENT_ID),
               "session": optional(data, "session", SESSION_ID), "project": optional(data, "project", PROJECT),
               "kind": optional(data, "kind", NOTIFY_KIND)}
+        if "pids" in data:  # the session's process ancestors: the app finds its terminal window among them
+            pids = data["pids"]
+            if not (isinstance(pids, list) and 1 <= len(pids) <= 8
+                    and all(isinstance(p, int) and not isinstance(p, bool) and 2 <= p <= 4_194_304 for p in pids)):
+                raise BadRequest("'pids' must be 1-8 process ids")
+            ev["pids"] = pids
         for key in ("interrupt", "risky"):
             if key in data:
                 ev[key] = flag(data, key)

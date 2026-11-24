@@ -63,6 +63,8 @@ def test_hook_sends_only_names_and_flags(capture, monkeypatch):
                "cwd": "/home/me/secret/claude-bot", "tool_input": {"command": "sudo rm -rf /tmp/x # my secret path"}}
     code, out = run_main(hook, payload, monkeypatch)
     assert code == 0 and out == "", "exit 0 and never print to stdout"
+    pids = got[0].pop("pids")
+    assert pids and all(isinstance(p, int) for p in pids), "parent process ids, numbers only"
     assert got == [{"event": "PreToolUse", "tool": "Bash", "risky": True, "session": "s1", "project": "claude-bot"}]
     assert "secret" not in json.dumps(got), "no prompt, command or path leaves the hook"
 
@@ -110,7 +112,8 @@ async def test_event_endpoint_validates_and_broadcasts_reactions(cli):
         pass
     assert msg == {"type": "cmd", "cmd": "react", "session": "default", "emote": "10_idea", "move": "jump"}
     for bad in ({"event": "Nope"}, {"event": "PreToolUse", "tool": "rm -rf /"}, {"event": "PreToolUse", "risky": "yes"}, {},
-                {"event": "Stop", "project": "/home/me/secret"}, {"event": "Stop", "session": "a b"}):
+                {"event": "Stop", "project": "/home/me/secret"}, {"event": "Stop", "session": "a b"},
+                {"event": "Stop", "pids": [1]}, {"event": "Stop", "pids": ["4740"]}, {"event": "Stop", "pids": list(range(2, 12))}):
         assert (await cli.post("/event", json=bad)).status == 400, bad
     await ws.close()
 
@@ -141,6 +144,7 @@ def test_hook_sends_the_notification_kind_but_never_the_message():
     hook = load("claude_hook")
     out = hook.summarize({"hook_event_name": "Notification", "notification_type": "permission_prompt",
                           "message": "Claude needs your permission to use Bash: rm secret.txt"})
+    out.pop("pids")
     assert out == {"event": "Notification", "kind": "permission_prompt"}
 
 

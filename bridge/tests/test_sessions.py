@@ -102,3 +102,11 @@ def test_idle_notification_is_not_a_permission():
     s = Sessions()
     s.feed(ev("Notification", kind="idle_prompt"), 0)
     assert att(s, 0) == (None, 0, "Needs you")
+
+
+def test_session_keeps_its_latest_process_chain():
+    s = Sessions()
+    s.feed(ev("SessionStart", pids=[100, 50, 40]), 0)
+    s.feed(ev("Stop"), 1)  # an event without pids keeps the last chain
+    assert s.live(1)[0]["pids"] == [100, 50, 40]
+    assert Sessions().live(0) == [] and s.live(1)[0]["pids"][-1] == 40

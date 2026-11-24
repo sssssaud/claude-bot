@@ -52,6 +52,8 @@ class Sessions:
         s["seen"] = now
         if ev.get("project"):
             s["project"] = ev["project"]
+        if ev.get("pids"):
+            s["pids"] = ev["pids"]
         doing = doing_for(ev)
         if doing:
             s["doing"] = doing
@@ -88,5 +90,5 @@ class Sessions:
                 s["attention"] = None
             out.append({"id": sid, "project": label, "doing": s["doing"],
                         "pressure": round(s["activity"].pressure(now, system_load), 1),
-                        "attention": s["attention"], "attention_id": s["attention_id"]})
+                        "attention": s["attention"], "attention_id": s["attention_id"], "pids": s.get("pids", [])})
         return out

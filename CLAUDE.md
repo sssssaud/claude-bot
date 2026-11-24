@@ -33,7 +33,7 @@ Folders other than `assets/` are created phase by phase, not all up front.
 
 ## Stack
 - Electron (forced XWayland) + React + Vite + three.js + Framer Motion (badge only)
-- Python 3 venv: aiohttp, psutil, nvidia-ml-py, Pillow, numpy, pytest (see requirements.txt); app/cursor.py uses the system's dbus-python + PyGObject
+- Python 3 venv: aiohttp, psutil, nvidia-ml-py, Pillow, numpy, pytest (see requirements.txt); app/kwin.py uses the system's dbus-python + PyGObject
 - Bridge on `127.0.0.1:8765` (HTTP + WebSocket)
 
 ## Build / run commands
@@ -61,5 +61,5 @@ Still to come: `./setup.sh` (one-command setup).
 - Blockers: none.
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - 2026-11-23: agy's Phase 4a reviewed + fixed; Claude Code hooks + token usage built and tested (`hooks/`), installed 2026-11-23 (undo: `python3 hooks/install.py --uninstall`). Start everything with `./run.sh`.
-- 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, app/cursor.py via KWin script). Tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit) + single instance built. Keyboard RGB removed (Saud's decision). Next: Saud picks (voice → text / one-command setup / real terminal position).
+- 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, via app/kwin.py). Tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit) + single instance built. Keyboard RGB removed (Saud's decision). Eyes follow each session's real terminal window (app/kwin.py). Next: Saud picks (voice → text / one-command setup).
 - Save-file: `docs/STATUS.md`. Handover for another agent: `HANDOVER.md` (2026-11-21, Claude weekly quota at 86 %).
