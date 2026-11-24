@@ -307,6 +307,26 @@ Feasibility, checked 2026-11-21 on this laptop (no root needed for any of it):
 - Bluetooth: `bluetoothctl` (adapter powered). Wi-Fi: `nmcli`. Battery: `upower` / psutil.
 - GPU numbers only while the RTX 3050 is awake; when asleep the popup says so (reading it wakes it).
 
+## Voice → text, step 1: the model runs locally (Claude, 2026-11-24)
+
+Saud said go for the local Hinglish option (built-in `/voice` left untested; Hindi support unknown).
+- Model: `Oriserve/Whisper-Hindi2Hinglish-Prime` @ `4edf7b8` (Whisper large-v3 fine-tune, writes Hindi in
+  Roman script, Apache 2.0). Converted once in a throwaway venv (CPU torch + ctranslate2 4.9.1):
+  `ct2-transformers-converter --model Oriserve/Whisper-Hindi2Hinglish-Prime --revision 4edf7b8…
+  --quantization int8_float16 --copy_files tokenizer.json preprocessor_config.json --output_dir
+  models/hinglish-prime-int8` → 1.5 GB (gitignored). The 6.2 GB download was removed with the HF cache
+  tool afterwards (only that revision; the shared blob store's names don't match the LFS sha256s, so no
+  manual deletes).
+- Project venv: faster-whisper 1.2.1 + pip CUDA 12 cuBLAS / cuDNN 9 (loaded from the venv by ctypes;
+  nothing system-wide). PyAV 19 rejects an argument faster-whisper 1.2.1 passes, so audio goes in as
+  numpy (stdlib `wave` / raw PCM from `pw-record`), never through PyAV.
+- **Measured:** peak VRAM 1,969 MiB (predicted ~2 GB); load 2.7 s; 11 s of audio in ~1.05 s (~10× real
+  time); dGPU back to `suspended` within 20 s after the process ends.
+- `bridge/voice.py`: record (pw-record), transcribe (lazy load, unload after 5 idle min, VAD, vocabulary
+  prompt), `--smoke` and `--try N`. 3 tests (no GPU, no microphone).
+- **Step 2 gate (set before testing):** Saud's 3 Hinglish sentences: ≥ 90 % words right (his judgement),
+  Roman script, text ready ≤ 1.5 s after speaking. Waiting for Saud to run `--try`.
+
 ## Eyes on the real terminal (Claude, 2026-11-24)
 
 Saud's first request (2026-11-20), now real: each octo looks at its own session's terminal window.

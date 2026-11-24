@@ -20,3 +20,6 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# speech model (1.5 GB, made by voice/convert notes in docs/STATUS.md; never committed)
+models/
