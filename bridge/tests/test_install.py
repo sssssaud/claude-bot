@@ -23,7 +23,7 @@ def test_install_keeps_everything_and_wraps_the_status_line():
     s = inst.install(REAL)
     assert s["model"] == "opus" and s["env"] == {"X": "1"}
     assert s["hooks"]["Stop"][0]["hooks"][0]["command"] == MC, "Mission Control's hook untouched"
-    assert s["hooks"]["SessionStart"] == REAL["hooks"]["SessionStart"]
+    assert s["hooks"]["SessionStart"][0] == REAL["hooks"]["SessionStart"][0], "Mission Control's stays first, ours is added after"
     for ev in inst.TOOL_EVENTS + inst.OTHER_EVENTS:
         assert sum(inst.is_ours(h) for g in s["hooks"][ev] for h in g["hooks"]) == 1, ev
     assert s["hooks"]["PreToolUse"][0]["matcher"] == "*"

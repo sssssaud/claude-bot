@@ -60,10 +60,10 @@ def test_hook_sends_only_names_and_flags(capture, monkeypatch):
     hook = load("claude_hook")
     monkeypatch.setattr(hook, "URL", url)
     payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "s1", "prompt": "secret",
-               "tool_input": {"command": "sudo rm -rf /tmp/x # my secret path"}}
+               "cwd": "/home/me/secret/claude-bot", "tool_input": {"command": "sudo rm -rf /tmp/x # my secret path"}}
     code, out = run_main(hook, payload, monkeypatch)
     assert code == 0 and out == "", "exit 0 and never print to stdout"
-    assert got == [{"event": "PreToolUse", "tool": "Bash", "risky": True}]
+    assert got == [{"event": "PreToolUse", "tool": "Bash", "risky": True, "session": "s1", "project": "claude-bot"}]
     assert "secret" not in json.dumps(got), "no prompt, command or path leaves the hook"
 
 
@@ -108,8 +108,9 @@ async def test_event_endpoint_validates_and_broadcasts_reactions(cli):
     assert (await cli.post("/event", json={"event": "Stop"})).status == 200
     while (msg := await ws.receive_json(timeout=2))["type"] != "cmd":
         pass
-    assert msg == {"type": "cmd", "cmd": "react", "emote": "10_idea", "move": "jump"}
-    for bad in ({"event": "Nope"}, {"event": "PreToolUse", "tool": "rm -rf /"}, {"event": "PreToolUse", "risky": "yes"}, {}):
+    assert msg == {"type": "cmd", "cmd": "react", "session": "default", "emote": "10_idea", "move": "jump"}
+    for bad in ({"event": "Nope"}, {"event": "PreToolUse", "tool": "rm -rf /"}, {"event": "PreToolUse", "risky": "yes"}, {},
+                {"event": "Stop", "project": "/home/me/secret"}, {"event": "Stop", "session": "a b"}):
         assert (await cli.post("/event", json=bad)).status == 400, bad
     await ws.close()
 

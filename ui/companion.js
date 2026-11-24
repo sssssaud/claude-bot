@@ -19,7 +19,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   layer.insertAdjacentHTML('beforeend', `
     <div class="badge" role="status" aria-live="off">
       <svg class="star" viewBox="-10 -10 20 20" aria-hidden="true"><path d="M0,-8V8M-7,-4L7,4M-7,4L7,-4"/></svg>
-      <span class="slot"></span><span class="pct">0%</span>
+      <span class="who" hidden></span><span class="slot"></span><span class="pct">0%</span>
     </div>
     <div class="popup" role="dialog" style="display:none">
       <div class="popup-head">
@@ -62,6 +62,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   const badge = layer.querySelector('.badge');
   const slot = badge.querySelector('.slot');
   const pct = badge.querySelector('.pct');
+  const who = badge.querySelector('.who'); // which Claude Code session this octo is
   const star = badge.querySelector('.star');
   const popup = layer.querySelector('.popup');
   const toast = layer.querySelector('.toast');
@@ -175,18 +176,21 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   let loopAt = 0;
   let particleKey = '';
 
-  function setVerb(word) {
-    const old = slot.querySelector('.cur');
-    const span = document.createElement('span');
-    span.className = 'w enter';
-    span.textContent = `${word}...`;
-    slot.append(span);
-    slot.style.width = `${span.scrollWidth}px`;
-    requestAnimationFrame(() => requestAnimationFrame(() => (span.className = 'w cur')));
-    if (old) {
+  function setVerb(word, suffix = '...') {
+    // every word still on the badge leaves, not just the one already shown: a second change
+    // within two frames used to leave both words stacked on top of each other (seen 2026-11-24)
+    for (const old of slot.querySelectorAll('.w:not(.leave)')) {
       old.className = 'w leave';
       setTimeout(() => old.remove(), 500);
     }
+    const span = document.createElement('span');
+    span.className = 'w enter';
+    span.textContent = `${word}${suffix}`;
+    slot.append(span);
+    slot.style.width = `${span.scrollWidth}px`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (span.className === 'w enter') span.className = 'w cur'; // unless it was already replaced
+    }));
     verb = word;
     place();
   }
@@ -196,11 +200,16 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     const bw = badge.offsetWidth;
     const screenRight = (screen.availLeft ?? 0) + screen.availWidth - window.screenX;
     const limit = Math.min(layer.clientWidth, screenRight) - 8;
-    let bx = octo.x + octo.width * 0.8;
-    const flipped = bx + bw > limit;
-    if (flipped) bx = octo.x + octo.width * 0.2 - bw;
-    bx = Math.max(8, bx);
-    const by = Math.max(8, octo.y + octo.height * 0.12);
+    let bx, by;
+    if (!who.hidden) { // session octo: centred over its head, so side-by-side octos never collide
+      bx = Math.max(8, Math.min(limit - bw, octo.x + (octo.width - bw) / 2));
+      by = Math.max(22, octo.y - badge.offsetHeight + 4); // 22: room for the project tag above it
+    } else {
+      bx = octo.x + octo.width * 0.8;
+      if (bx + bw > limit) bx = octo.x + octo.width * 0.2 - bw;
+      bx = Math.max(8, bx);
+      by = Math.max(8, octo.y + octo.height * 0.12);
+    }
     moveTo(badge, bx, by);
 
 
@@ -336,7 +345,13 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     else if (t.ram?.percent >= limits.ram_percent_alert) fire('ram', `⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
   }
 
-  function apply({ p, masti, temps, look, sleepy, emote: picked }, now) {
+  function apply({ p, masti, temps, look, sleepy, emote: picked, label: session, doing }, now) {
+    const name = session ?? '';
+    if (who.textContent !== name) {
+      who.textContent = name;
+      who.hidden = !name;
+      place();
+    }
     const m = moodOf(p, masti);
     const moodChanged = m !== mood;
     let faceDelay = 200;
@@ -381,8 +396,15 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       clearTimeout(faceTimer);
       faceTimer = setTimeout(() => scene.setFace(face), moodChanged ? faceDelay : 0);
     }
-    const vp = verbPool(p, masti);
-    if (vp !== pool || now >= verbAt) {
+    // a session octo says what its session is doing (Saud's purpose for the bot);
+    // the idle home octo, with no session, keeps the playful thinking verbs
+    const vp = doing ? null : verbPool(p, masti);
+    if (doing) {
+      if (doing !== verb) {
+        pool = null;
+        setVerb(doing, '');
+      }
+    } else if (vp !== pool || now >= verbAt) {
       pool = vp;
       setVerb(nextVerb(vp, verb));
       verbAt = now + verbInterval(p);

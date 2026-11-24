@@ -11,6 +11,30 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | — | |
 
+## One octo per Claude Code session (Claude, 2026-11-24)
+
+Saud's purpose for the bot, built: every running Claude Code session gets its own octo, labelled with its
+project folder, saying what that session is doing, so terminals can stay minimised.
+- `bridge/sessions.py` (pure, 5 tests): one activity engine per `session_id`; label = folder name (two
+  sessions in one folder → `claude-bot #2`); "doing": *Thinking / Editing / Running a command / Reading
+  code / Searching the web / Starting a sub-agent / Needs you / Hit an error / Done*; SessionEnd removes it,
+  30 idle minutes removes a crashed one, at most 6 (least recently active goes).
+- Hook sends `session` and `project` (the folder's **name**, never the path; tested), plus SessionStart and
+  SessionEnd (installer re-run with backup `settings.json.bak-claude-bot-20261124-194443`).
+- Bridge broadcasts `{"type": "live", "sessions": [...]}` at 1 Hz; reactions carry their session id so only
+  that octo jumps/frowns.
+- Electron: one transparent window per session, each with its own mood simulator, input shape and saved spot
+  (per project folder, only when dragged); new octos line up 250 px apart; a session's end = wave, then gone;
+  no sessions = one idle home octo. The dock still drives all octos (test tool).
+- Badge: project tag on top, the session's activity in the pill, centred above the octo (side badges
+  collided with neighbours, seen in the first screenshot).
+- **Bug fixed on the way:** two badge-text changes within two frames left both words stacked on top of each
+  other (also visible in agy's popup screenshot as garbled text). Every old word now leaves.
+- Checked live with the real bridge, this session's real hooks and two fake sessions via the real hook
+  script: 3 octos with the right names and activities (`docs/img/multi-session.png`); ending a session →
+  wave → gone (3 → 2 → 1); CPU with one octo 9.8 % of a core + bridge 0.4 %; no GPU crashes.
+- Known limit: the "home" spot of a new project is a guess (line-up); drag it once and it remembers.
+
 ## Emotes on the big octo; sticker removed (Claude, 2026-11-23, `66c17f6`)
 
 Saud: the small 2D sticker didn't match the big 3D octo, so all emotes now live on the octo itself.

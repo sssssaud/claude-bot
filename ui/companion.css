@@ -27,6 +27,14 @@
 .badge .w { grid-area: 1 / 1; white-space: nowrap; transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .45s, filter .45s; }
 .badge .w.enter { transform: translateY(100%); opacity: 0; filter: blur(6px); }
 .badge .w.leave { transform: translateY(-100%); opacity: 0; filter: blur(6px); }
+/* the session's project name: a small tag sitting on top of the pill */
+.badge .who {
+  position: absolute; bottom: calc(100% + 3px); left: 50%; transform: translateX(-50%);
+  font: 500 11px 'JetBrains Mono', monospace; color: #f4eae5; white-space: nowrap;
+  max-width: 22ch; overflow: hidden; text-overflow: ellipsis;
+  padding: 1px 7px; border-radius: 6px; background: #17121a; border: 1px solid var(--edge, rgba(224, 122, 95, .75));
+}
+.badge .who[hidden] { display: none; }
 .badge .pct { font: 500 12px 'JetBrains Mono', monospace; opacity: .8; font-variant-numeric: tabular-nums; }
 .badge.hot .slot { animation: haze .16s steps(2) infinite alternate; } /* heat shimmer above 80 % */
 @keyframes haze { from { transform: skewX(-2deg) translateY(.4px); } to { transform: skewX(2deg) translateY(-.4px); } }

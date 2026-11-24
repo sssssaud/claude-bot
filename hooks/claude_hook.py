@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Claude Code hook → claude-bot bridge. Registered for UserPromptSubmit, PreToolUse, PostToolUse,
-PostToolUseFailure, Stop, SubagentStart, SubagentStop and Notification (see hooks/README.md).
+PostToolUseFailure, Stop, SubagentStart, SubagentStop, Notification, SessionStart and SessionEnd
+(see hooks/README.md).
 
 Rules: never slow Claude Code (0.3 s budget, bridge down = instant refusal), always exit 0, never
 print to stdout (for some events Claude Code reads stdout as instructions). Privacy: only the event
-name, the tool name and yes/no flags leave this script. A Bash command is checked for risky
+name, the tool name, yes/no flags, the session id and the project folder's NAME leave this script. A Bash command is checked for risky
 patterns here; its text is never sent. Standard library only.
 """
 import json
+import os
 import re
 import sys
 import urllib.error
@@ -28,6 +30,11 @@ def summarize(p: dict) -> dict:
     if ev["event"] == "PreToolUse" and tool == "Bash":
         cmd = (p.get("tool_input") or {}).get("command")
         ev["risky"] = isinstance(cmd, str) and bool(RISKY.search(cmd))
+    if isinstance(p.get("session_id"), str):
+        ev["session"] = p["session_id"][:64]  # one octo per session
+    folder = os.path.basename(p["cwd"].rstrip("/")) if isinstance(p.get("cwd"), str) else ""
+    if folder:
+        ev["project"] = folder[:40]  # the folder's name only, never the path
     if isinstance(p.get("agent_id"), str):
         ev["agent"] = p["agent_id"][:64]
     return ev

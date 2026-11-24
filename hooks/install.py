@@ -22,7 +22,7 @@ HOOK = HERE / "claude_hook.py"
 STATUSLINE = HERE / "statusline.py"
 SETTINGS = Path.home() / ".claude" / "settings.json"
 TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PostToolUseFailure")
-OTHER_EVENTS = ("UserPromptSubmit", "Stop", "SubagentStart", "SubagentStop", "Notification")
+OTHER_EVENTS = ("UserPromptSubmit", "Stop", "SubagentStart", "SubagentStop", "Notification", "SessionStart", "SessionEnd")
 
 
 def hook_command(hook: Path = HOOK) -> str:

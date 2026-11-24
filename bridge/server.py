@@ -23,7 +23,8 @@ from urllib.parse import urlparse
 import psutil
 from aiohttp import web, WSMsgType
 
-from .activity import EVENTS, Activity
+from .activity import EVENTS
+from .sessions import Sessions
 from .controls import SystemControls
 from .telemetry import TelemetryCollector
 
@@ -33,6 +34,8 @@ EMOTE_NAME = re.compile(r"^\d\d_[a-z_]+$")
 CONTROLS_REFRESH_S = 10.0  # pick up changes made outside the bot (KDE tray, keyboard keys)
 TOOL_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 AGENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+SESSION_ID = AGENT_ID
+PROJECT = re.compile(r"^[^/\\\x00-\x1f]{1,40}$")  # a folder name, never a path
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
 DEFAULT_THRESHOLDS = {"cpu_temp_alert": 90, "gpu_temp_alert": 83, "ram_percent_alert": 90,
                       "tokens_warning_percent": 80, "tokens_critical_percent": 95}
@@ -134,7 +137,7 @@ class BridgeApp:
         self.controls = SystemControls(mock=mock)
         self.latest_telemetry = self.telemetry.snapshot()
         self.latest_controls = None  # filled by the first refresh
-        self.activity = Activity()
+        self.sessions = Sessions()  # one activity per Claude Code session
         self.latest_usage = None  # Claude Code token usage, from hooks/statusline.py
         self.config = load_config()
         self.ws_clients = set()
@@ -211,13 +214,14 @@ class BridgeApp:
         data = await body(request)
         if data.get("event") not in EVENTS:
             raise BadRequest("unknown 'event'")
-        ev = {"event": data["event"], "tool": optional(data, "tool", TOOL_NAME), "agent": optional(data, "agent", AGENT_ID)}
+        ev = {"event": data["event"], "tool": optional(data, "tool", TOOL_NAME), "agent": optional(data, "agent", AGENT_ID),
+              "session": optional(data, "session", SESSION_ID), "project": optional(data, "project", PROJECT)}
         for key in ("interrupt", "risky"):
             if key in data:
                 ev[key] = flag(data, key)
-        reaction = self.activity.feed(ev, time.monotonic())
+        session, reaction = self.sessions.feed(ev, time.monotonic())
         if reaction:
-            await self.broadcast({"type": "cmd", "cmd": "react", **reaction})
+            await self.broadcast({"type": "cmd", "cmd": "react", "session": session, **reaction})
         return web.json_response({"ok": True})
 
     async def handle_usage(self, request):
@@ -282,7 +286,7 @@ class BridgeApp:
                 await self.broadcast({"type": "telemetry", "data": t})
                 gpu = t["gpu"]["usage"] if t["gpu"].get("awake") else 0
                 load = max(t["cpu"].get("usage") or 0, gpu or 0)
-                await self.broadcast({"type": "live", "pressure": round(self.activity.pressure(time.monotonic(), load), 1)})
+                await self.broadcast({"type": "live", "sessions": self.sessions.live(time.monotonic(), load), "load": load})
             except Exception:  # keep the loop alive, but never silently
                 log.exception("telemetry snapshot failed")
 
