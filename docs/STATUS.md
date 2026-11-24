@@ -348,7 +348,18 @@ The point of the bot: **show what each Claude Code session is doing**, so termin
    screen or comes to the cursor. Cursor position under Wayland: KWin script (`workspace.cursorPos`),
    because X11 apps can't see the cursor over Wayland windows. Answering stays in the terminal for now
    (Allow/Deny buttons on a floating window = one stray click runs a command; decide later).
-3. **Future: voice → text only.** The user speaks, it types. Local `whisper-cli` (whisper.cpp, CPU; already
+3. **Future: voice → text only.** Options researched 2026-11-24 (not built; Saud to pick):
+   - Claude Code 2.1.331 has **built-in hold-to-talk dictation** (`/voice`, `voiceEnabled`, language in
+     `/config`; cloud STT at Anthropic; falls back to English for unsupported languages; Hindi support
+     not verified).
+   - Local, Hinglish in Roman script: `Oriserve/Whisper-Hindi2Hinglish-Prime` (Whisper large-v3 fine-tune,
+     1.54 B params, Apache 2.0): fp16 ≈ 3.1 GB weights + ~0.5 GB = ~3.6 GB VRAM; int8 via faster-whisper
+     ≈ 1.5 GB + ~0.4 GB = ~2 GB → fits 6 GB. GPU wakes only while the model is loaded (load on first
+     use, unload when idle). CPU would be too slow (32-layer decoder).
+   - Already installed: whisper.cpp large-v3-turbo q5 (CPU, ~2.8× real time, 0 VRAM); Hindi tends to come
+     out in Devanagari. Qwen3-ASR-0.6B (≈ 0.94 B params, ~1.9 GB bf16) fits too, but Hindi support unverified.
+   - Typing into the right terminal: kitty remote control (`kitty @ send-text`) needs a kitty.conf change.
+   The user speaks, it types. Local `whisper-cli` (whisper.cpp, CPU; already
    installed). Typing into the terminal needs `wl-clipboard` or `ydotool` (dnf, later).
    **The bot never speaks** (no text-to-speech): it would read everything, not what matters, and what
    matters is for the developer/user to decide.
