@@ -2,8 +2,7 @@
 import '@fontsource/sora/latin-600.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
 import './dock.css';
-import { NAMES, moodOf, toHex, rgba } from './mood/mood.js';
-import { EFFECTS, stepZones } from './mood/keyboard.js';
+import { NAMES, moodOf } from './mood/mood.js';
 
 const bridge = window.dockBridge; // from app/dock-preload.cjs
 const $ = id => document.getElementById(id);
@@ -95,25 +94,4 @@ bridge.onState(s => {
   if (!sliding) pressure.value = Math.round(s.p);
   $('demo').setAttribute('aria-pressed', String(Boolean(s.demo)));
   moodButtons.forEach((b, i) => b.classList.toggle('act', MOODS[i] === m));
-  $('eff').textContent = EFFECTS[m];
 });
-
-// ---- mock keyboard strip: 20 writes/s, each zone eases toward the mood's effect ----
-$('kb').innerHTML = `<div class="zone">${'<i></i>'.repeat(20)}</div>`.repeat(4);
-const zoneEls = [...document.querySelectorAll('.zone')];
-let zones = Array.from({ length: 4 }, () => [224, 122, 95]);
-let writes = 0;
-let since = performance.now();
-setInterval(() => {
-  const now = performance.now();
-  zones = stepZones(zones, moodOf(state.p, state.masti), now / 1000);
-  zoneEls.forEach((el, z) => el.style.setProperty('--c', rgba(zones[z])));
-  $('kbg').style.background = rgba(zones[1], 0.55);
-  $('hex').textContent = toHex(zones[0]);
-  writes++;
-  if (now - since >= 1000) {
-    $('wps').textContent = `${writes}/s`;
-    writes = 0;
-    since = now;
-  }
-}, 50);

@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { PARTICLE_KINDS } from '../scene3d/particles.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, tempEmote, gpuHot,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -109,4 +109,13 @@ test('every one of the 48 emotes is an expression made only of parts and particl
   }
   const used = new Set(Object.values(EXPRESSIONS).flatMap(x => x.props));
   for (const part of parts) if (part.startsWith('prop.')) assert.ok(used.has(part.slice(5)), `${part} is never used`);
+});
+
+test('temperature emotes follow spec 3.6', () => {
+  assert.equal(tempEmote({ cpu: 95, gpu: 50 }, 'deep'), '21_sick');
+  assert.equal(tempEmote({ cpu: 40, gpu: 40 }, 'idle'), '32_snowy');
+  assert.equal(tempEmote({ cpu: 40, gpu: 40 }, 'deep'), null, 'snowy only when idle');
+  assert.equal(tempEmote({ cpu: 60, gpu: 60 }, 'idle'), null);
+  assert.equal(gpuHot({ gpu: 84 }), true);
+  assert.equal(gpuHot({ gpu: 83 }), false);
 });

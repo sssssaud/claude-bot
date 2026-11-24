@@ -138,7 +138,7 @@ The format check for the optional transcript fallback is deferred to Phase 6.
   proper **Headset/Music, Sun, Spa**, plus **Melted, Sleeping, Wave**, which are useful pose
   references for the `melt`, `sleep` and `wave` moves. There are no individual files for it.
 
-## RGB driver tier
+## RGB driver tier (historical: keyboard RGB was removed from the project on 2026-11-24)
 
 **Tier 1, OpenRGB SDK: available.** OpenRGB 1.0 is installed, has detected the AW-ELC as
 one 4-zone device, and I already have rw access through its udev rules. Phase 4 still needs:

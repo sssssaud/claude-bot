@@ -2,7 +2,7 @@
 
 A transparent, always-on-top desktop companion for Nobara Linux (KDE Plasma, Wayland). A 3D voxel
 version of the Pixel Octo emote character reacts to Claude Code activity and system load, shows
-tiny CPU/GPU stats and syncs the Dell G15's 4-zone keyboard RGB to its mood.
+CPU/GPU/RAM, quick controls and Claude Code token usage in a click popup. One octo per Claude Code session.
 
 ![The voxel octo: front, back and three-quarter view](docs/img/octo-phase1.png)
 
@@ -10,8 +10,8 @@ tiny CPU/GPU stats and syncs the Dell G15's 4-zone keyboard RGB to its mood.
 click-through except on the octo and its badge, draggable) with 5 moods, face expressions, 13
 moves, pixel particles, a heat-coloured thinking-verb badge and rotating emote stickers, and it
 looks toward your terminal. Click the badge to open the simulator dock that drives it all
-(pressure, moods, moves, emotes, look target, fake temperatures, keyboard strip). Next: the
-Python bridge with real keyboard RGB (Phase 4). Full plan: [`PROMPT.md`](PROMPT.md);
+(pressure, moods, moves, emotes, look target, fake temperatures). Since then: the bridge with real
+data, one octo per session, attention at the cursor, and a tray. Original spec: [`PROMPT.md`](PROMPT.md);
 progress: [`docs/STATUS.md`](docs/STATUS.md); hardware notes: [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
 ## Setup (Nobara / Fedora)

@@ -22,9 +22,7 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
 
 ## Hard rules (each one cost real debugging time; do not "simplify" them away)
 
-1. **Never write to the keyboard controller** (USB `187c:0551` AW-ELC, `/dev/hidraw0`, OpenRGB) without
-   Saud's explicit OK. First find out whether it stores every update in flash; if yes, write only on
-   mood changes and use its built-in effects. Restore the original colour on exit.
+1. **Keyboard RGB is removed for good (Saud, 2026-11-24): never write to, open or probe the keyboard light controller (USB `187c:0551` AW-ELC, `/dev/hidraw*`, OpenRGB) and don't propose it again.**
 2. **Never call `lspci` or read PCI config in a poll loop**: it wakes the RTX 3050 (measured). Read
    `/sys/bus/pci/devices/0000:01:00.0/power/runtime_status`; touch NVML only when it is `active`.
 3. **Never use `app.commandLine.appendSwitch('ozone-platform', …)`**: too late, the GPU process crashed.
@@ -50,7 +48,7 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
 - 2026-11-22 agy: step 1 + 2 (bridge, popup, toasts), `99d4710`.
 - 2026-11-23 Claude: reviewed and fixed 4a (`06b83a5`); step 3 built and tested (activity engine,
   hooks, status line wrapper, token row + alerts, installer); installed with Saud's OK, live.
-  Remaining: step 4 (keyboard RGB, real terminal position) and step 5.
+  Remaining: step 4 (real terminal position) and step 5.
 - 2026-11-23 Saud's vision (docs/STATUS.md): one octo per Claude Code session is the core purpose;
   later attention (permission → octo to the cursor) and voice → text (no text-to-speech, ever).
 - 2026-11-24 Claude: emotes moved onto the 3D octo (sticker removed); one octo per session built + live.
@@ -74,7 +72,7 @@ and use the DevTools protocol on 127.0.0.1:9223 (pages `overlay.html`, `dock.htm
    (event names and payload fields for Claude Code 2.1.330 are in `docs/HARDWARE.md`); a status-line
    wrapper forwards `rate_limits.five_hour` / `seven_day` `used_percentage` + `resets_at` and
    `context_window.used_percentage` to the bridge, then runs ponytail's script.
-4. **Keyboard RGB** (rule 1 first) and **real terminal position** for the gaze (a KWin script reports the
+4. ~~Keyboard RGB~~ (removed, rule 1). **Real terminal position** for the gaze (a KWin script reports the
    window of the terminal running Claude Code; the overlay already accepts `look: { fx, fy }`).
 5. **Tray with Quit, autostart, packaging, voxel props**, then the beauty pass (mood badge and
    sticker move into the popup so the octo looks clean outside).

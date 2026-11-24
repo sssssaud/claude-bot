@@ -6,7 +6,7 @@
 | 1 clean_emotes + 3D octo in browser | ✅ done 2026-11-20 | Tag `phase-1-working`. |
 | 2 Electron overlay | ✅ done 2026-11-20, hand-checked | Tag `phase-2-working`. |
 | 3 Badge + moods + dock (fake data) | ✅ done 2026-11-20 (3a moods/face/badge · 3b dock · 3c moves, particles, gaze) | Tag `phase-3-working`. |
-| 4 Bridge + Stats Popup + Controls | 🔨 4a done 2026-11-22 | Python aiohttp bridge on 127.0.0.1:8765, real telemetry (<0.9% CPU, dGPU safe check), click octo → popup with live stats, BT/Wi-Fi/brightness toggles, alert toasts. Next: 4b RGB keyboard & terminal position via KWin |
+| 4 Bridge + Stats Popup + Controls | ✅ (keyboard RGB removed 2026-11-24) | Python aiohttp bridge on 127.0.0.1:8765, real telemetry (<0.9% CPU, dGPU safe check), click octo → popup with live stats, BT/Wi-Fi/brightness toggles, alert toasts. Next: 4b RGB keyboard & terminal position via KWin |
 | 5 Telemetry HUD | — | Merged into popup per Saud's 2026-11-21 plan |
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
@@ -307,6 +307,15 @@ Feasibility, checked 2026-11-21 on this laptop (no root needed for any of it):
 - Bluetooth: `bluetoothctl` (adapter powered). Wi-Fi: `nmcli`. Battery: `upower` / psutil.
 - GPU numbers only while the RTX 3050 is awake; when asleep the popup says so (reading it wakes it).
 
+## Keyboard RGB removed (Saud, 2026-11-24)
+
+Saud was worried about the keyboard, so the idea is gone for good. Before deciding, a read-only check
+showed typing never depended on it: the laptop keys are the "AT Translated Set 2 keyboard" on the internal
+i8042 bus; the AW-ELC (`187c:0551`) is a separate USB chip that only drives the lights. Nothing was ever
+written to it. Removed: the dock's virtual keyboard strip and `ui/mood/keyboard.js` (+3 tests; the
+temperature-emote test it held moved to `mood.test.mjs`). Phase 4 "RGB" and spec §7 no longer apply.
+**Never write to, open or probe the light controller again.**
+
 ## Saud's vision: what the bot is for (2026-11-23)
 
 The point of the bot: **show what each Claude Code session is doing**, so terminals can stay minimised.
@@ -334,6 +343,5 @@ The point of the bot: **show what each Claude Code session is doing**, so termin
 ## Blockers / open questions
 - Screen-lock pause (spec 3.3) not done yet: Phase 7, together with the tray's Sleep.
 - `lookAt` (Phase 3) needs the cursor position, which XWayland only reports over X11 windows: expect it to work only near the octo.
-- Does the AW-ELC store each update in flash? (Phase 4, before any streaming)
 - Blush colour for the face: not sampled yet (the clean sprites lose the tiny cheeks). Phase 3 expressions.
 - Project path has a space in a parent folder (`Projects/claude bot/claude-bot`). Fine so far.

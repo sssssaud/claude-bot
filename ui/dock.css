@@ -1,4 +1,4 @@
-/* Simulator dock. Cards, slider, buttons, switch, chips and keyboard strip ported from
+/* Simulator dock. Cards, slider, buttons, switch and chips ported from
    assets/reference/ui-preview.html. */
 :root { color-scheme: dark; --bg: #17121a; --ink: #f4eae5; --mut: #b7a6a4; --line: rgba(255, 255, 255, .1);
   --panel: rgba(255, 255, 255, .045); --terra: #E07A5F; }
@@ -48,12 +48,6 @@ button.act { background: #4a2a26; border-color: var(--terra); color: #ffe2d6; }
 .slider { display: grid; grid-template-columns: 36px 1fr 52px; align-items: center; gap: 8px; color: var(--mut); }
 .slider b { font: 500 13px 'JetBrains Mono', monospace; color: var(--ink); text-align: right; }
 
-.kb { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px; border-radius: 10px; background: #0f0b0e; border: 1px solid #2c2430; }
-.zone { --c: #000; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 4px; border-radius: 6px; background: var(--c); }
-.zone i { height: 13px; border-radius: 3px; background: rgba(14, 10, 13, .72); }
-.kbglow { height: 10px; margin: 0 10%; border-radius: 50%; filter: blur(8px); }
-.ro { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; font: 13px 'JetBrains Mono', monospace; color: var(--mut); }
-.ro b { color: var(--ink); font-weight: 500; white-space: nowrap; }
 
 .screenmap { position: relative; width: 100%; aspect-ratio: var(--ratio, 16 / 9); border-radius: 8px; border: 1px solid var(--line);
   background: linear-gradient(165deg, #251a2a, #2f1e24 55%, #1d1419); cursor: crosshair; }

@@ -31,7 +31,7 @@ from .telemetry import TelemetryCollector
 log = logging.getLogger("bridge")
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 EMOTE_NAME = re.compile(r"^\d\d_[a-z_]+$")
-CONTROLS_REFRESH_S = 10.0  # pick up changes made outside the bot (KDE tray, keyboard keys)
+CONTROLS_REFRESH_S = 10.0  # pick up changes made outside the bot (KDE tray, Fn keys)
 TOOL_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 AGENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 SESSION_ID = AGENT_ID
