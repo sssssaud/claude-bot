@@ -11,6 +11,22 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Idea waiting for Saud's pick: session-true expressions + personality (2026-11-25)
+Saud: each octo's face should match its session (heavy session → that kind of face), and the octo should have
+a customisable personality ("friendly or other type") and its own emotions. Ideas only, not built.
+Today: pressure → mood (idle ≤ 15 · light ≤ 45 · deep ≤ 75 · overdrive) with pose + face pool per mood;
+events → reactions (error → confused, 3 in a row → crying; risky → devil; web → traveler; sub-agent → magic;
+needs you → surprised; done → cool/idea); context: hot CPU sick, battery, cold snowy.
+New session signals available (all from data we already get): turn running long (10+ min); waiting on a
+permission for a while; fixed after errors (relief); context window nearly full (status line has session_id →
+per session); token limit near (80/95 %); many sub-agents at once; idle for long.
+Personalities = one table each (mood pools + reaction table + how often/how big): **Friendly** (default:
+encouraging, errors → thinking/strong, done → hug/love), **Dramatic** (big: errors → crying fast, overdrive →
+angry, done → party flip), **Calm** (few emotes, slow, own face mostly; good for focus / screen sharing).
+Picked from the tray (global) + optional per-project override in config.json.
+Options: (1) personalities only; (2) personalities + the new signals (recommended); (3) + inner emotions:
+energy and happiness meters that drift through the day (errors/long nights lower, wins/breaks raise).
+
 ## New sessions no longer blank the token limits (Claude, 2026-11-25)
 Saud opened two sessions → popup Session/Week "–", "resets ?". Cause: a freshly opened session's status line has
 no `rate_limits` yet (context % only); `/usage` **replaced** the whole stored record, so the account's limits
