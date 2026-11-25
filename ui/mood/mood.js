@@ -185,4 +185,19 @@ export function contextEmote({ cpu, gpu } = {}, battery, mood) { // hot CPU > lo
   if (cpu < TEMP.cool && gpu < TEMP.cool && mood === 'idle') return '32_snowy';
   return null;
 }
+
+export const FULL_BATTERY = 99; // %: some batteries never report exactly 100
+// "Plugged in and full → 24 full_battery, small hop", once per charge: fires when a plugged-in battery reaches
+// FULL_BATTERY, then re-arms only after unplugging or dropping under 95 %, so a laptop that lives on the
+// charger doesn't celebrate all day. Not armed at start: already full when the app starts = no hop.
+export function fullBatteryWatch() {
+  let armed = false;
+  return b => {
+    if (!b) return false;
+    if (b.plugged === false || b.percent < 95) armed = true;
+    if (!armed || b.plugged !== true || b.percent < FULL_BATTERY) return false;
+    armed = false;
+    return true;
+  };
+}
 export const gpuHot = ({ gpu } = {}) => gpu > TEMP.gpuHot; // sweat now, melt in Phase 3c

@@ -6,7 +6,7 @@ import './companion.css';
 import { createScene3D } from './scene3d/Scene3D.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, heatColor, ROSE, PINK, mix, rgba,
-  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, contextEmote, lowBattery, gpuHot,
+  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, contextEmote, lowBattery, fullBatteryWatch, gpuHot,
 } from './mood/mood.js';
 
 // same defaults as the bridge (bridge/server.py); config.json overrides them through the bridge
@@ -162,6 +162,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
   let mood = null;
   let poseName = null; // the mood's pose, or 'drained' on low battery
+  const fullCharge = fullBatteryWatch();
   let pool = null;
   let verb = null;
   let verbAt = 0;
@@ -298,7 +299,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
         setText(gpuVal, `${t.gpu.usage}% ${t.gpu.temp ?? '--'}°C`);
         setText(gpuExtra, `${t.gpu.power_w}W`);
       }
-      setText(batVal, `${Math.round(t.battery?.percent ?? 0)}%${t.battery?.plugged ? ' ⚡' : ''}`);
+      setText(batVal, t.battery ? `${Math.round(t.battery.percent)}%${t.battery.plugged ? ' ⚡' : ''}` : '?'); // no battery / unreadable
       setText(fanVal, `${t.fans?.cpu_rpm || t.fans?.gpu_rpm || 0} rpm`);
     }
     // controls: null = couldn't be read (shown as ?, button disabled), never a guessed value
@@ -378,6 +379,10 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     if (pose !== poseName) {
       poseName = pose;
       scene.setPose(POSE[pose]);
+    }
+    if (fullCharge(battery)) {
+      local = { emote: '24_full_battery', until: now + 5 };
+      scene.play('jump');
     }
     behave(m, temps, sleepy, now);
     aim(look);

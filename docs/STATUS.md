@@ -19,9 +19,15 @@ low; Claude Code reactions still win for their 6 s; the badge keeps showing what
 Dock "Telemetry override" got a **Battery** slider (unplugged, same 60 s window as the CPU/GPU sliders).
 **Checked live 2026-11-25** on the running app (driven over a temporary local debugging port, screenshots
 at 100 % vs 15 %): sleepy eyes, no mouth, body lower/head down at 15 %; normal at 100 %. Tests: 6 new asserts
-in `mood.test.mjs`. Not done (spec's sibling row): "plugged in and full → 24 full_battery" (ask Saud).
-Known, pre-existing: `bridge/telemetry.py get_battery` returns a made-up 100 %/plugged when psutil can't read
-(swallowed exception); harmless for this reaction (no false droop), but the popup would show 100 %.
+in `mood.test.mjs`.
+**Full battery (Saud: "solve those too", 2026-11-25):** spec row "Plugged in and full → 24 full_battery, small hop".
+`fullBatteryWatch()` in mood.js: fires once when a plugged-in battery reaches 99 % (some never report 100), re-arms
+only after unplugging or < 95 % (no repeat while trickling 99 ↔ 100; no hop at app start if already full) →
+5 s `24_full_battery` + `jump`. Dock Battery slider: 100 = plugged in. Checked live: screenshots mid-hop (in the
+air, ^ ^ eyes, smile, sparkle) and 2 s later (landed, sparkles).
+**Battery reader fixed:** `get_battery` returned a made-up 100 %/plugged when psutil failed or there's no battery
+(swallowed exception). Now: `None` (no battery / unreadable, logged once), `plugged: None` when the OS can't
+tell (so "unknown" never counts as "unplugged" → no false droop); popup shows "?". Test in test_telemetry.py.
 
 ## Screen-lock pause (Claude, 2026-11-25)
 Spec 3.3 ("pause when the screen is locked"). `app/screenlock.js` runs `dbus-monitor` on KDE's

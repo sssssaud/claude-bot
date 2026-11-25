@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { PARTICLE_KINDS } from '../scene3d/particles.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, gpuHot,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, gpuHot,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -126,4 +126,15 @@ test('temperature and battery emotes follow spec 3.6', () => {
   assert.equal(lowBattery(null) || lowBattery({}), false, 'no battery reading: no reaction');
   assert.equal(gpuHot({ gpu: 84 }), true);
   assert.equal(gpuHot({ gpu: 83 }), false);
+});
+
+test('full battery celebrates once per charge, not all day on the charger', () => {
+  const at = (percent, plugged) => ({ percent, plugged });
+  let w = fullBatteryWatch();
+  assert.equal(w(at(100, true)), false, 'already full when the app starts: no hop');
+  assert.deepEqual([at(60, true), at(98, true), at(99, true), at(100, true), at(99, true), at(100, true)].map(w),
+    [false, false, true, false, false, false], 'charging up: one hop at 99 %, none while it trickles 99 ↔ 100');
+  assert.deepEqual([at(100, false), at(100, true)].map(w), [false, true], 'unplug, plug back in full: hop again');
+  w = fullBatteryWatch();
+  assert.deepEqual([at(50, false), at(100, null), null].map(w), [false, false, false], 'plugged unknown / no reading: never');
 });

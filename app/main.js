@@ -399,7 +399,7 @@ function settle(o, save = false) {
 const clock = () => performance.now() / 1000;
 const TEMPS_OVERRIDE_S = 60; // the dock's fake temperatures (and battery) win for a minute after the last slider move
 let fakeTemps = { cpu: 55, gpu: 50 };
-let fakeBattery = 100; // % unplugged
+let fakeBattery = 100; // %; 100 = plugged in, lower = on battery
 let fakeTempsUntil = -Infinity;
 let dockLook = null; // { fx, fy }: a look target set by hand in the dock (test tool); wins over the real terminal
 const bridge = { ws: null, connected: false, telemetry: null, controls: null, usage: null, config: null, load: 0 };
@@ -417,7 +417,7 @@ setInterval(() => {
   const now = clock();
   const shared = {
     temps: currentTemps(now), bridge: bridge.connected,
-    telemetry: now < fakeTempsUntil ? { ...bridge.telemetry, battery: { percent: fakeBattery, plugged: false } } : bridge.telemetry,
+    telemetry: now < fakeTempsUntil ? { ...bridge.telemetry, battery: { percent: fakeBattery, plugged: fakeBattery >= 100 } } : bridge.telemetry,
     controls: bridge.controls, usage: bridge.usage, config: bridge.config,
   };
   let first = null;

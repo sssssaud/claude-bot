@@ -7,12 +7,14 @@ Strict Safety Rules:
 3. Keep CPU footprint under 1% by caching sysfs paths and polling ACPI fans every 3s.
 """
 import glob
+import logging
 import os
 import psutil
 import time
 from typing import Dict, Any, Optional
 
 NVIDIA_PCI_STATUS = "/sys/bus/pci/devices/0000:01:00.0/power/runtime_status"
+log = logging.getLogger("bridge.telemetry")
 
 class TelemetryCollector:
     def __init__(self, pci_status_path: str = NVIDIA_PCI_STATUS, mock: bool = False):
@@ -28,6 +30,7 @@ class TelemetryCollector:
         self._fan2_path = None
         self._last_fan_time = 0.0
         self._last_fans = {"cpu_rpm": 0, "gpu_rpm": 0}
+        self._battery_warned = False  # log an unreadable battery once, not every second
 
         if not mock:
             self._discover_sysfs_paths()
@@ -129,20 +132,22 @@ class TelemetryCollector:
         except Exception:
             return {"percent": 0.0, "used_gb": 0.0, "total_gb": 16.0}
 
-    def get_battery(self) -> Dict[str, Any]:
+    def get_battery(self) -> Optional[Dict[str, Any]]:
+        """{percent, plugged} or None (no battery, or unreadable): never a made-up value.
+        plugged is None when the OS can't tell, so nothing treats "unknown" as "unplugged"."""
         if self.mock:
             return {"percent": 100.0, "plugged": True}
-
         try:
             bat = psutil.sensors_battery()
-            if bat:
-                return {
-                    "percent": round(bat.percent, 1),
-                    "plugged": bool(bat.power_plugged),
-                }
-        except Exception:
-            pass
-        return {"percent": 100.0, "plugged": True}
+        except Exception as err:  # psutil reads /sys; a driver hiccup must not stop the telemetry loop
+            if not self._battery_warned:
+                log.warning("battery unreadable: %s", err)
+                self._battery_warned = True
+            return None
+        if bat is None:
+            return None
+        plugged = bat.power_plugged
+        return {"percent": round(bat.percent, 1), "plugged": None if plugged is None else bool(plugged)}
 
     def get_fans(self) -> Dict[str, Any]:
         if self.mock:

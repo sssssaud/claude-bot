@@ -47,3 +47,22 @@ def test_cpu_smoothing():
     cpu2 = collector.get_cpu()
     assert isinstance(cpu1["usage"], float)
     assert isinstance(cpu2["usage"], float)
+
+
+def test_battery_is_real_or_none_never_made_up(monkeypatch):
+    from collections import namedtuple
+    from bridge import telemetry
+    Bat = namedtuple("Bat", "percent secsleft power_plugged")
+    c = TelemetryCollector(mock=True)
+    c.mock = False  # the battery path only; no sysfs discovery needed
+    monkeypatch.setattr(telemetry.psutil, "sensors_battery", lambda: Bat(14.96, 900, False))
+    assert c.get_battery() == {"percent": 15.0, "plugged": False}
+    monkeypatch.setattr(telemetry.psutil, "sensors_battery", lambda: Bat(80, 900, None))
+    assert c.get_battery() == {"percent": 80, "plugged": None}, "unknown stays unknown, not 'unplugged'"
+    monkeypatch.setattr(telemetry.psutil, "sensors_battery", lambda: None)
+    assert c.get_battery() is None, "no battery (desktop): no reading, not 100 % plugged"
+
+    def broken():
+        raise OSError("sysfs hiccup")
+    monkeypatch.setattr(telemetry.psutil, "sensors_battery", broken)
+    assert c.get_battery() is None and c._battery_warned
