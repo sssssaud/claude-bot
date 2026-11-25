@@ -21,40 +21,31 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       <svg class="star" viewBox="-10 -10 20 20" aria-hidden="true"><path d="M0,-8V8M-7,-4L7,4M-7,4L7,-4"/></svg>
       <span class="who" hidden></span><span class="slot"></span><span class="pct">0%</span>
     </div>
-    <div class="popup" role="dialog" style="display:none">
-      <div class="popup-head">
-        <div class="popup-head-left">
-          <span class="bridge-dot" title="Bridge Status"></span>
-          <span>Pixel Companion</span>
-        </div>
-        <button class="popup-close" aria-label="Close">✕</button>
+    <div class="popup" role="dialog" aria-label="System and controls" style="display:none">
+      <div class="pop-head">
+        <span class="pop-dot" title="Bridge offline"></span>
+        <span class="pop-title">Pixel Companion</span>
+        <button class="pop-close" aria-label="Close">✕</button>
       </div>
-      <div class="pop-row">
-        <div class="pop-item"><span class="pop-lbl">CPU</span><span class="pop-val pop-cpu-val">0%</span><span class="pop-sub pop-cpu-temp">--°C</span></div>
-        <div class="pop-item"><span class="pop-lbl">RAM</span><span class="pop-val pop-ram-val">0%</span><span class="pop-sub pop-ram-gb">--G</span></div>
+      <div class="pop-grid">
+        <div class="pop-cell"><span class="pop-lbl">CPU</span><span class="pop-val pop-cpu-val">–</span><span class="pop-sub pop-cpu-sub"></span></div>
+        <div class="pop-cell"><span class="pop-lbl">RAM</span><span class="pop-val pop-ram-val">–</span><span class="pop-sub pop-ram-sub"></span></div>
+        <div class="pop-cell"><span class="pop-lbl">GPU</span><span class="pop-val pop-gpu-val">–</span><span class="pop-sub pop-gpu-sub"></span></div>
+        <div class="pop-cell"><span class="pop-lbl">Battery</span><span class="pop-val pop-bat-val">–</span><span class="pop-sub pop-bat-sub"></span></div>
       </div>
-      <div class="pop-gpu-line">
-        <span class="pop-lbl">GPU</span>
-        <span class="pop-val pop-gpu-val">asleep (zZ)</span>
-        <span class="pop-sub pop-gpu-extra"></span>
+      <div class="pop-toggles">
+        <button class="pop-toggle pop-btn-bt" aria-pressed="false"><span>Bluetooth</span><span class="st">–</span></button>
+        <button class="pop-toggle pop-btn-wifi" aria-pressed="false"><span>Wi-Fi</span><span class="st">–</span></button>
       </div>
-      <div class="pop-row">
-        <div class="pop-item"><span class="pop-lbl">BAT</span><span class="pop-val pop-bat-val">--%</span></div>
-        <div class="pop-item"><span class="pop-lbl">FAN</span><span class="pop-val pop-fan-val">0 rpm</span></div>
-      </div>
-      <div class="pop-controls">
-        <button class="ctrl-chip pop-btn-bt" title="Toggle Bluetooth">BT: --</button>
-        <button class="ctrl-chip pop-btn-wifi" title="Toggle Wi-Fi">Wi-Fi: --</button>
-        <div class="ctrl-slider-wrap">
-          <span class="icon">☼</span>
-          <input type="range" class="ctrl-slider pop-bright-slider" min="5" max="100" value="40" aria-label="Brightness">
-          <span class="pop-sub pop-bright-val">40%</span>
-        </div>
-      </div>
-      <div class="pop-tokens">
-        <span class="pop-lbl">Tokens</span>
-        <span class="pop-val pop-tokens-val">Session -- · Week --</span>
-        <span class="pop-sub pop-tokens-sub">waiting for Claude Code</span>
+      <label class="pop-bright">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M3 13l1-1M12 4l1-1"/></svg>
+        <input type="range" class="pop-bright-slider" min="5" max="100" value="40" aria-label="Screen brightness">
+        <span class="pop-bright-val">–</span>
+      </label>
+      <div class="pop-usage">
+        <span class="pop-lbl">Session</span><span class="bar"><i class="pop-session-bar"></i></span><span class="pop-val pop-session-val">–</span>
+        <span class="pop-lbl">Week</span><span class="bar"><i class="pop-week-bar"></i></span><span class="pop-val pop-week-val">–</span>
+        <span class="pop-sub pop-usage-sub">waiting for Claude Code</span>
       </div>
     </div>
     <div class="toast" role="status" aria-live="polite"></div>`);
@@ -68,22 +59,26 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   const toast = layer.querySelector('.toast');
 
   // DOM elements in popup
-  const bridgeDot = popup.querySelector('.bridge-dot');
-  const popupClose = popup.querySelector('.popup-close');
-  const cpuVal = popup.querySelector('.pop-cpu-val');
-  const cpuTemp = popup.querySelector('.pop-cpu-temp');
-  const ramVal = popup.querySelector('.pop-ram-val');
-  const ramGb = popup.querySelector('.pop-ram-gb');
-  const gpuVal = popup.querySelector('.pop-gpu-val');
-  const gpuExtra = popup.querySelector('.pop-gpu-extra');
-  const batVal = popup.querySelector('.pop-bat-val');
-  const fanVal = popup.querySelector('.pop-fan-val');
-  const btnBt = popup.querySelector('.pop-btn-bt');
-  const btnWifi = popup.querySelector('.pop-btn-wifi');
-  const brightSlider = popup.querySelector('.pop-bright-slider');
-  const brightVal = popup.querySelector('.pop-bright-val');
-  const tokensVal = popup.querySelector('.pop-tokens-val');
-  const tokensSub = popup.querySelector('.pop-tokens-sub');
+  const $p = sel => popup.querySelector(sel);
+  const bridgeDot = $p('.pop-dot');
+  const popupClose = $p('.pop-close');
+  const cpuVal = $p('.pop-cpu-val');
+  const cpuSub = $p('.pop-cpu-sub');
+  const ramVal = $p('.pop-ram-val');
+  const ramSub = $p('.pop-ram-sub');
+  const gpuVal = $p('.pop-gpu-val');
+  const gpuSub = $p('.pop-gpu-sub');
+  const batVal = $p('.pop-bat-val');
+  const batSub = $p('.pop-bat-sub');
+  const btnBt = $p('.pop-btn-bt');
+  const btnWifi = $p('.pop-btn-wifi');
+  const brightSlider = $p('.pop-bright-slider');
+  const brightVal = $p('.pop-bright-val');
+  const sessionVal = $p('.pop-session-val');
+  const sessionBar = $p('.pop-session-bar');
+  const weekVal = $p('.pop-week-val');
+  const weekBar = $p('.pop-week-bar');
+  const usageSub = $p('.pop-usage-sub');
 
   let popupOpen = false;
   let currentBt = false;
@@ -108,13 +103,14 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   brightSlider.addEventListener('input', () => { // live while dragging (Saud 2026-11-25); main sends only the newest
     slidingBrightness = true;
     brightVal.textContent = `${brightSlider.value}%`;
+    brightFill();
     onControl?.('brightness', +brightSlider.value);
   });
   brightSlider.addEventListener('change', () => { slidingBrightness = false; });
 
   function togglePopup(force) {
     popupOpen = typeof force === 'boolean' ? force : !popupOpen;
-    popup.style.display = popupOpen ? 'block' : 'none';
+    popup.style.display = popupOpen ? '' : 'none'; // '' = the CSS grid
     layer.classList.toggle('popup-open', popupOpen);
     if (popupOpen) renderPopup(state);
     place();
@@ -122,7 +118,22 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
   // Write text only when it changed: unconditional writes at 10 Hz cost CPU (measured in Phase 3a).
   const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
-  const onOff = (v, name) => (v === null || v === undefined ? `${name}: ?` : `${name}: ${v ? 'ON' : 'OFF'}`);
+  // the slider's filled part (CSS var --v): 5..100 % of brightness → 0..100 % of the track
+  const brightFill = () => brightSlider.style.setProperty('--v', `${((brightSlider.value - 5) / 95) * 100}%`);
+  // a toggle: On / Off, or "?" and disabled when it couldn't be read (never a guessed value)
+  function showToggle(btn, v) {
+    setText(btn.lastElementChild, typeof v === 'boolean' ? (v ? 'On' : 'Off') : '?');
+    btn.disabled = typeof v !== 'boolean';
+    btn.classList.toggle('on', v === true);
+    if (btn.getAttribute('aria-pressed') !== String(v === true)) btn.setAttribute('aria-pressed', String(v === true));
+  }
+  function showUsage(win, val, bar) { // one Claude Code limit window: "35%" + a thin bar (accent from 80 %)
+    const pct = win ? Math.max(0, Math.min(100, Math.round(win.used_percentage))) : null;
+    setText(val, pct === null ? '–' : `${pct}%`);
+    const width = `${pct ?? 0}%`;
+    if (bar.style.width !== width) bar.style.width = width;
+    bar.classList.toggle('hot', pct !== null && pct >= 80);
+  }
 
   // Alert toast system (cooldown: 60s per alert)
   const lastAlertTimes = { cpu: 0, gpu: 0, ram: 0, token: 0 };
@@ -214,12 +225,22 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
 
 
-    if (popupOpen) {
-      const pw = popup.offsetWidth || 250;
-      const ph = popup.offsetHeight || 190;
-      let py = octo.y + octo.height + 8;
-      if (py + ph > layer.clientHeight) py = Math.max(8, octo.y - ph - 8);
-      let px = Math.max(8, Math.min(layer.clientWidth - pw - 8, octo.x + (octo.width - pw) / 2));
+    if (popupOpen) { // beside the octo (never over its head), on the side with room on screen
+      const pw = popup.offsetWidth || 236;
+      const ph = popup.offsetHeight || 250;
+      const leftEdge = Math.max(8, (screen.availLeft ?? 0) - window.screenX + 8);
+      const roomRight = limit - (octo.x + octo.width);
+      const roomLeft = octo.x - leftEdge;
+      let px = null;
+      let py = Math.max(8, Math.min(layer.clientHeight - ph - 8, octo.y + (octo.height - ph) / 2));
+      // the roomier side; in a tight window it may slide over the octo's side a little, never its head
+      if (Math.max(roomRight, roomLeft) >= pw * 0.75) {
+        px = roomRight >= roomLeft ? Math.min(octo.x + octo.width + 6, limit - pw) : Math.max(leftEdge, octo.x - pw - 6);
+      } else { // no room on either side: below the octo, else above it
+        px = Math.max(8, Math.min(layer.clientWidth - pw - 8, octo.x + (octo.width - pw) / 2));
+        py = octo.y + octo.height + 8;
+        if (py + ph > layer.clientHeight) py = Math.max(8, octo.y - ph - 8);
+      }
       moveTo(popup, px, py);
     }
 
@@ -279,41 +300,41 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   }
 
   function renderPopup({ telemetry: t, controls: c, bridge, usage: u }) {
-    const pctOf = w => (w ? `${Math.round(w.used_percentage)}%` : '--');
-    setText(tokensVal, `Session ${pctOf(u?.five_hour)} · Week ${pctOf(u?.seven_day)}`);
+    showUsage(u?.five_hour, sessionVal, sessionBar);
+    showUsage(u?.seven_day, weekVal, weekBar);
     const stale = u && Date.now() / 1000 - u.received_at > 15 * 60; // status line only updates while Claude Code runs
-    setText(tokensSub, !u ? 'waiting for Claude Code'
+    setText(usageSub, !u ? 'waiting for Claude Code'
       : `resets ${resetTime(u.five_hour?.resets_at)}${stale ? ' · not updated recently' : ''}`);
     bridgeDot.classList.toggle('online', Boolean(bridge));
+    const dotTitle = bridge ? 'Bridge connected' : 'Bridge offline';
+    if (bridgeDot.title !== dotTitle) bridgeDot.title = dotTitle;
     if (t) {
+      const rpm = t.fans?.cpu_rpm || t.fans?.gpu_rpm || 0;
       setText(cpuVal, `${Math.round(t.cpu?.usage ?? 0)}%`);
-      setText(cpuTemp, t.cpu?.temp != null ? `${Math.round(t.cpu.temp)}°C` : '--°C');
+      setText(cpuSub, `${t.cpu?.temp != null ? `${Math.round(t.cpu.temp)}°C` : '–°C'} · ${rpm} rpm`);
       setText(ramVal, `${Math.round(t.ram?.percent ?? 0)}%`);
-      setText(ramGb, `${t.ram?.used_gb ?? '--'}/${Math.round(t.ram?.total_gb ?? 0)}G`);
+      setText(ramSub, `${t.ram?.used_gb ?? '–'} / ${Math.round(t.ram?.total_gb ?? 0)} GB`);
       if (!t.gpu?.awake) {
-        setText(gpuVal, t.gpu?.available === false ? 'not found' : 'asleep (zZ)');
-        setText(gpuExtra, '');
+        setText(gpuVal, t.gpu?.available === false ? 'none' : 'asleep');
+        setText(gpuSub, t.gpu?.available === false ? '' : 'saving power');
       } else {
-        setText(gpuVal, `${t.gpu.usage}% ${t.gpu.temp ?? '--'}°C`);
-        setText(gpuExtra, `${t.gpu.power_w}W`);
+        setText(gpuVal, `${t.gpu.usage}%`);
+        setText(gpuSub, `${t.gpu.temp ?? '–'}°C · ${t.gpu.power_w} W`);
       }
-      setText(batVal, t.battery ? `${Math.round(t.battery.percent)}%${t.battery.plugged ? ' ⚡' : ''}` : '?'); // no battery / unreadable
-      setText(fanVal, `${t.fans?.cpu_rpm || t.fans?.gpu_rpm || 0} rpm`);
+      const b = t.battery; // null = no battery / unreadable
+      setText(batVal, b ? `${Math.round(b.percent)}%` : '?');
+      setText(batSub, !b ? 'no reading' : b.plugged === true ? 'plugged in' : b.plugged === false ? 'on battery' : '');
     }
-    // controls: null = couldn't be read (shown as ?, button disabled), never a guessed value
     currentBt = c?.bluetooth;
     currentWifi = c?.wifi;
-    setText(btnBt, onOff(currentBt, 'BT'));
-    setText(btnWifi, onOff(currentWifi, 'Wi-Fi'));
-    btnBt.disabled = typeof currentBt !== 'boolean';
-    btnWifi.disabled = typeof currentWifi !== 'boolean';
-    btnBt.classList.toggle('active', currentBt === true);
-    btnWifi.classList.toggle('active', currentWifi === true);
+    showToggle(btnBt, currentBt);
+    showToggle(btnWifi, currentWifi);
     brightSlider.disabled = !c?.brightness;
     if (c?.brightness && !slidingBrightness) {
-      brightSlider.value = c.brightness.percent;
+      if (+brightSlider.value !== c.brightness.percent) brightSlider.value = c.brightness.percent;
       setText(brightVal, `${c.brightness.percent}%`);
     } else if (!c?.brightness) setText(brightVal, '?');
+    brightFill();
   }
 
   // Token alerts: one toast per window and level, re-armed when the window resets (spec: notify at 80 %).

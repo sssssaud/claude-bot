@@ -42,92 +42,80 @@
 
 
 
-/* ---- Quick Stats & Controls Popup Panel (Phase 4) ---- */
+/* ---- Popup: system + controls. Minimal redesign (Saud, 2026-11-25). Four tokens, locked before styling:
+   canvas #121014 · surface #1D1A20 · ink #F1ECE8 · accent #FF7A45 (the octo's own orange: only "on",
+   the brightness fill and usage over 80 %). Muted text = ink at 62 %. Contrast on canvas: ink 16.1:1,
+   muted 6.7:1, accent 7.3:1 (WCAG AA). One typeface: Inter (installed; Sora/JetBrains Mono were not). ---- */
 .popup {
-  position: absolute; left: 0; top: 0;
-  width: 250px; border-radius: 14px;
-  /* solid: a transparent overlay window has nothing behind it to blur, and 92 % alpha let the
-     desktop's text show through (seen 2026-11-23) */
-  background: #17121a;
-  border: 1px solid rgba(224, 122, 95, 0.4);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
-  color: #f3c3b3;
-  font: 500 11px 'JetBrains Mono', monospace;
-  padding: 10px 12px;
-  pointer-events: auto;
-  box-sizing: border-box;
-  will-change: transform;
-  transition: transform .4s cubic-bezier(.2, 1.2, .4, 1), opacity .25s;
+  --canvas: #121014; --surface: #1d1a20; --ink: #f1ece8; --accent: #ff7a45;
+  --muted: rgb(241 236 232 / .62); --hair: rgb(241 236 232 / .08); --track: rgb(241 236 232 / .12);
+  --ease: cubic-bezier(.32, .72, 0, 1);
+  position: absolute; left: 0; top: 0; box-sizing: border-box;
+  width: 236px; padding: 14px;
+  display: grid; gap: 14px;
+  /* solid: a transparent overlay window has nothing behind it to blur (desktop text showed through, 2026-11-23) */
+  background: var(--canvas); color: var(--ink);
+  border: 1px solid var(--hair); border-radius: 16px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / .5);
+  font: 500 12px/1.3 Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums;
+  pointer-events: auto; will-change: transform;
+  transition: transform .35s var(--ease);
+  animation: pop-in .24s var(--ease);
 }
-.popup-head {
-  display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 6px; margin-bottom: 8px;
-  font: 600 12px 'Sora', sans-serif;
-}
-.popup-head-left { display: flex; align-items: center; gap: 6px; }
-.bridge-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #666; transition: background .3s, box-shadow .3s;
-}
-.bridge-dot.online { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
-.popup-close {
-  background: none; border: none; color: #888;
-  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
-}
-.popup-close:hover { color: #fff; }
+@keyframes pop-in { from { opacity: 0; translate: 0 6px; } }
+.popup button { font: inherit; color: inherit; cursor: pointer; }
+.popup :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.pop-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-.pop-item { display: flex; align-items: baseline; gap: 4px; }
-.pop-lbl { opacity: 0.6; font-size: 10px; }
-.pop-val { font-weight: 600; font-variant-numeric: tabular-nums; }
-.pop-sub { opacity: 0.5; font-size: 10px; }
+.pop-head { display: flex; align-items: center; gap: 8px; }
+.pop-title { flex: 1; font-weight: 600; letter-spacing: -.01em; }
+.pop-dot { width: 6px; height: 6px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--muted); }
+.pop-dot.online { background: var(--accent); box-shadow: none; }
+.pop-close { background: none; border: 0; border-radius: 6px; padding: 2px 4px; margin: -2px -4px -2px 0; color: var(--muted); line-height: 1; }
+.pop-close:hover { color: var(--ink); }
 
-.pop-gpu-line {
-  margin-bottom: 6px; padding: 3px 6px; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
-  display: flex; justify-content: space-between; align-items: baseline;
-}
+/* CPU RAM / GPU Battery: label left, value right, one muted detail line under each */
+.pop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+.pop-cell { display: grid; grid-template-columns: auto 1fr; align-items: baseline; row-gap: 2px; min-width: 0; }
+.pop-lbl { color: var(--muted); font-size: 11px; }
+.pop-val { justify-self: end; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.pop-sub { grid-column: 1 / -1; min-height: 1.3em; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.pop-controls {
-  display: flex; gap: 6px; align-items: center;
-  margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.pop-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pop-toggle {
+  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: var(--surface);
+  transition: border-color .2s var(--ease);
 }
-.ctrl-chip {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #aaa; border-radius: 6px;
-  padding: 3px 7px; font-size: 10px; cursor: pointer; white-space: nowrap;
-  transition: all 0.15s; user-select: none;
-}
-.ctrl-chip:hover { border-color: rgba(224, 122, 95, 0.5); color: #fff; }
-.ctrl-chip.active {
-  background: rgba(224, 122, 95, 0.25);
-  border-color: rgba(224, 122, 95, 0.65);
-  color: #ffab91; font-weight: 600;
-}
-.ctrl-slider-wrap { display: flex; align-items: center; gap: 4px; flex: 1; }
-.ctrl-slider-wrap .icon { font-size: 11px; opacity: 0.7; }
-.ctrl-slider {
-  flex: 1; height: 4px; -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.15); border-radius: 2px; outline: none;
-}
-.ctrl-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 10px; height: 10px;
-  border-radius: 50%; background: #ffab91; cursor: pointer;
-}
+.pop-toggle .st { color: var(--muted); font-weight: 600; }
+.pop-toggle.on { border-color: rgb(255 122 69 / .45); }
+.pop-toggle.on .st { color: var(--accent); }
+.pop-toggle:hover:not(:disabled):not(.on) { border-color: var(--track); }
+.pop-toggle:disabled { opacity: .45; cursor: default; }
 
-.pop-tokens {
-  margin-top: 6px; padding-top: 6px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.07);
-  font-size: 10px;
-  /* label left, numbers right, reset time on its own line: three spans in a flex row wrapped
-     word by word (seen 2026-11-23) */
-  display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline;
+/* brightness: its own row, so the slider can never push the value out of the panel (min-width: 0) */
+.pop-bright { display: grid; grid-template-columns: auto minmax(0, 1fr) 3.2em; align-items: center; gap: 10px; }
+.pop-bright svg { width: 14px; height: 14px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; }
+.pop-bright-val { justify-self: end; color: var(--muted); }
+.pop-bright-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; height: 4px; margin: 0;
+  border-radius: 2px; cursor: pointer;
+  background: linear-gradient(to right, var(--accent) var(--v, 40%), var(--track) var(--v, 40%));
 }
-.pop-tokens .pop-tokens-val { justify-self: end; white-space: nowrap; }
-.pop-tokens .pop-tokens-sub { grid-column: 1 / -1; justify-self: end; opacity: .7; }
+.pop-bright-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / .45);
+  transition: transform .15s var(--ease);
+}
+.pop-bright-slider:active::-webkit-slider-thumb { transform: scale(1.15); }
+.pop-bright-slider:disabled { opacity: .45; cursor: default; }
+
+/* Claude Code limits: label, thin bar, number; reset time under them */
+.pop-usage { display: grid; grid-template-columns: auto minmax(0, 1fr) 3ch; align-items: center; gap: 6px 10px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.pop-usage .pop-val { font-size: 12px; }
+.pop-usage .pop-sub { text-align: right; }
+.bar { height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: rgb(241 236 232 / .8); transition: width .4s var(--ease); }
+.bar i.hot { background: var(--accent); }
 
 /* ---- Alert Toasts ---- */
 .toast {
@@ -146,8 +134,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .badge.hot .slot { animation: none; }
-  .badge, .badge .w, .popup, .toast { transition: none; }
+  .badge, .badge .w, .popup, .toast, .pop-toggle, .bar i { transition: none; }
+  .popup { animation: none; }
 }
 
-.ctrl-chip:disabled { opacity: .45; cursor: default; }
 .layer.popup-open .badge { visibility: hidden; } /* the popup takes its place */

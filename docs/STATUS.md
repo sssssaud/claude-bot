@@ -11,6 +11,24 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Popup redesign: minimal and clean (Claude, 2026-11-25)
+Saud: brightness bar sticks out; wants a minimalist, clean popup. Ranked critique of the old one (measured):
+1) brightness row overflowed by 59 px (two chips + a range input that can't shrink below ~129 px, one flex row);
+2) placed above the octo when there's no room below → covered its head (~41 px); 3) noise: 3 divider styles,
+tinted GPU pill, glowing dot, salmon border, ALL-CAPS abbreviations, 6 text colours; 4) Sora / JetBrains Mono
+not installed (fc-match → Noto Sans): unintended fallback fonts; 5) small grey text 3.8:1 (fails WCAG AA).
+**Locked tokens:** canvas #121014 · surface #1D1A20 · ink #F1ECE8 · accent #FF7A45 (octo orange: only "on",
+slider fill, usage ≥ 80 %); muted = ink 62 % → 6.7:1, ink 16.1:1, accent 7.3:1. Type: Inter only (installed),
+tabular numbers. Motion: cubic-bezier(.32,.72,0,1), open = fade + 6 px rise; reduced motion respected.
+Layout (236 px): header (bridge dot, title, close) · 2×2 grid CPU/RAM/GPU/Battery with one muted detail line
+each (fan rpm moved under CPU) · Bluetooth / Wi-Fi toggles (On/Off/?, aria-pressed) · brightness on its own row
+(min-width 0, accent fill via --v) · Session/Week thin bars + reset time. Placement: beside the octo on the
+roomier side (may slide over its side in a tight window, never its head); above/below only if neither side has
+¾ of the popup's width. (First try fell back to above: the octo's real box is ~230 px wide, not the nominal 176,
+left side 1 px short → rule changed, not the gap.)
+Checked live via screenshots: overflow 59 px → none; popup beside the octo, octo fully visible; slider sends and
+fills (44 % → fill 41 %); toggles report state.
+
 ## Brightness follows the slider live (Claude, 2026-11-25)
 Saud: brightness only changed on release. The slider now sends on every `input`; main.js `setControl` runs one
 request per control at a time and keeps only the newest waiting value (a set takes 0.07–0.12 s, measured), so
