@@ -11,6 +11,15 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## No octo for a new session: the app wasn't running (Claude, 2026-11-25)
+Saud opened a session (alien language project); no octo. Evidence: no Electron, bridge down; hooks installed
+(11 entries), no project override. Cause: Claude started `./run.sh` as a background job of its own Claude Code
+session, so it died when that session's process ended. Fix now: started detached (`setsid -f ./run.sh`, log
+`~/.cache/claude-bot.log`, own process session). Rule for agents: never start the app as a Claude Code
+background job; use setsid. An already-open session gets its octo on its next hook event (bridge memory starts
+empty). Lasting fix (Saud's pick pending): tray "Start on login" and/or a SessionStart hook that starts the app
+when the bridge is down.
+
 ## `./setup.sh` ✅ one-command setup (Claude, 2026-11-25)
 Steps: system check (python3 ≥ 3.10, node ≥ 22.12 for Electron 45, curl, qdbus, dbus-monitor, bluetoothctl,
 nmcli, python3-dbus + python3-gobject-base for app/kwin.py; missing → prints `sudo dnf install /usr/bin/<tool> …`
