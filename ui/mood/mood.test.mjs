@@ -3,9 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { PARTICLE_KINDS } from '../scene3d/particles.js';
+import { MOVES } from '../scene3d/moves.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, gpuHot,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, MOMENT_S, momentPicker, gpuHot,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -137,4 +138,27 @@ test('full battery celebrates once per charge, not all day on the charger', () =
   assert.deepEqual([at(100, false), at(100, true)].map(w), [false, true], 'unplug, plug back in full: hop again');
   w = fullBatteryWatch();
   assert.deepEqual([at(50, false), at(100, null), null].map(w), [false, false, false], 'plugged unknown / no reading: never');
+});
+
+test('session moments: real parts, real moves, one at a time, then rest', () => {
+  const parts = new Set(Object.keys(JSON.parse(readFileSync(new URL('../../voxels/octo.json', import.meta.url))).parts));
+  const emoteFaces = new Set(Object.values(EXPRESSIONS).map(x => JSON.stringify(x)));
+  for (const [name, { face, move, every }] of Object.entries(MOMENTS)) {
+    assert.ok(parts.has(`eyes.${face.eyes}`) && (face.mouth === 'none' || parts.has(`mouth.${face.mouth}`)), name);
+    for (const e of face.extras) assert.ok(parts.has(`extra.${e}`), `${name}: extra.${e}`);
+    for (const pa of face.particles) assert.ok(PARTICLE_KINDS.includes(pa), `${name}: particle ${pa}`);
+    assert.ok(!emoteFaces.has(JSON.stringify(face)), `${name} looks like one of the 48 emotes`);
+    assert.ok(move === undefined || move in MOVES, `${name}: move ${move}`);
+    assert.ok(every >= 20, `${name}: rests at least 20 s`);
+  }
+  const pick = momentPicker();
+  assert.equal(pick([], 0), null);
+  assert.equal(pick(['juggling', 'limit_near'], 0), 'juggling', 'first = highest priority');
+  assert.equal(pick(['juggling', 'limit_near'], MOMENT_S - 0.1), 'juggling', 'stays for MOMENT_S');
+  assert.equal(pick(['juggling', 'limit_near'], MOMENT_S), 'limit_near', 'then the next one, juggling rests');
+  assert.equal(pick(['juggling'], MOMENT_S + 1), null, 'situation over or resting: nothing');
+  assert.equal(pick(['juggling'], 2 * MOMENT_S + MOMENTS.juggling.every), 'juggling', 'back after its rest');
+  const p2 = momentPicker();
+  p2(['waiting_long'], 0);
+  assert.equal(p2([], 1), null, 'answered: the impatient face goes at once');
 });

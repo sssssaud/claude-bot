@@ -195,3 +195,14 @@ async def test_a_new_sessions_status_line_does_not_wipe_the_limits(cli, monkeypa
     u = (await (await cli.ws_connect("/ws")).receive_json())["usage"]
     assert "five_hour" not in u and u["seven_day"] == full["seven_day"], "a reset window's old number is dropped"
     await ws.close()
+
+
+async def test_status_line_context_belongs_to_its_session(cli):
+    hook = load("statusline")
+    payload = {"session_id": "abc-123", "context_window": {"used_percentage": 90}}
+    assert hook.usage_of(payload) == {"context": 90, "session": "abc-123"}
+    assert "session" not in hook.usage_of({"session_id": "a b/../x", "context_window": {"used_percentage": 1}})
+    assert hook.usage_of({"session_id": "abc"}) == {}, "nothing to send: no session alone"
+    assert (await cli.post("/event", json={"event": "UserPromptSubmit", "session": "abc-123"})).status == 200
+    assert (await cli.post("/usage", json={"context": 90, "session": "abc-123"})).status == 200
+    assert (await cli.post("/usage", json={"context": 9, "session": "a b"})).status == 400

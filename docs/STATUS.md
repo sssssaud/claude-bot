@@ -11,7 +11,21 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
-## Personality + session moments + feelings: Saud picked option 3 (2026-11-25), plan waiting for his OK
+## Phase A ✅ session moments (Claude, 2026-11-25)
+`bridge/sessions.py` reports each session's situations in priority order (`live(...)["moments"]`):
+waiting_long (permission unanswered ≥ 60 s) · context_full (≥ 85 %, per session: status line now sends
+session_id, `/usage` stores it via `set_context`) · long_turn (≥ 10 min of Claude's own working time per
+prompt; time waiting for Saud subtracted) · juggling (≥ 2 sub-agents) · limit_near (5-hour or weekly ≥ 80 %).
+`activity.py`: relief reaction `22_healing` + jump when a tool works after ≥ 2 errors in a row.
+Octo (Friendly look, `mood.js MOMENTS`): impatient (angry eyes, no mouth, dots, shake) · dizzy-full (dizzy,
+o, blush, bounce) · tired (sleepy, grit, sweat) · juggling (happy, grit, sweat, sparkles) · worried (open, grit,
+sweat); none equals one of the 48 emotes (test). `momentPicker`: one at a time, MOMENT_S = 8 s, then rests
+20–120 s while it lasts; starts only when no reaction/greeting is on screen (live test showed a moment used up
+unseen behind the sub-agent reaction → fixed). Priority on the face: reaction > greeting > moment > temp/battery.
+Checked live (fake session, screenshots): juggling, dizzy-full, impatient + badge "Needs you: <what>".
+long_turn / limit_near: tests only (10 min; fake limits would show in the popup).
+
+## Personality + session moments + feelings: Saud picked option 3 (2026-11-25), plan approved, A done
 Plan: A) bridge computes each session's moments (pure, tested; status line also sends session_id so context
 fullness is per session) → B) 3 personalities in the renderer (tables; tray + dock picker; default Friendly,
 assumed) → C) energy + happiness per session in the bridge, shown in the popup and in pose/face.

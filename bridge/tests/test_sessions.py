@@ -125,3 +125,36 @@ def test_detail_follows_the_session_and_survives_the_permission_echo():
     s.feed(ev("Notification", kind="permission_prompt"), 3.1)  # the echo carries no tool or detail
     assert detail() == "Needs you: Push to GitHub" and s.live(9)[0]["attention"] == "permission"
     assert detail_for({"event": "PreToolUse", "tool": "Grep", "detail": "x"}) is None, "only tools with a detail form"
+
+
+def test_session_moments_are_situations_not_single_events():
+    """Saud's pick (2026-11-25): the octo shows what situation its session is in."""
+    from bridge.sessions import LONG_TURN_S, WAIT_LONG_S
+    s = Sessions()
+    moments = lambda now, limit=None: s.live(now, 0, limit)[0]["moments"]
+    s.feed(ev("UserPromptSubmit", project="p"), 0)
+    assert moments(1) == []
+    s.feed(ev("PermissionRequest", tool="Bash"), 100)
+    assert moments(100 + WAIT_LONG_S - 1) == [] and moments(100 + WAIT_LONG_S) == ["waiting_long"]
+    s.feed(ev("PreToolUse", tool="Bash"), 400)  # answered after 300 s of waiting: Claude works again
+    assert moments(400) == []
+    assert "long_turn" not in moments(LONG_TURN_S + 299), "the 300 s spent waiting for Saud isn't working time"
+    assert moments(LONG_TURN_S + 300) == ["long_turn"]
+    s.feed(ev("SubagentStart", agent="a1"), 1000)
+    s.feed(ev("SubagentStart", agent="a2"), 1001)
+    assert "juggling" in moments(1002)
+    s.set_context("s1", 86)
+    s.set_context("nobody", 99)  # a status line from a session the bridge hasn't seen: ignored
+    assert moments(1003, limit=81) == ["context_full", "long_turn", "juggling", "limit_near"], "priority order"
+    s.feed(ev("Stop"), 1004)
+    assert moments(1005, limit=50) == ["context_full"], "turn over: no long turn, sub-agents gone"
+
+
+def test_relief_after_errors():
+    from bridge.activity import Activity
+    a = Activity()
+    a.feed(ev("PostToolUseFailure", tool="Bash"), 0)
+    assert a.feed(ev("PostToolUse", tool="Bash"), 1) is None, "one error then fine: nothing special"
+    a.feed(ev("PostToolUseFailure", tool="Bash"), 2)
+    a.feed(ev("PostToolUseFailure", tool="Bash"), 3)
+    assert a.feed(ev("PostToolUse", tool="Bash"), 4) == {"emote": "22_healing", "move": "jump"}

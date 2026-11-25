@@ -256,8 +256,11 @@ class BridgeApp:
                 usage[key] = {"used_percentage": number(w, "used_percentage", 0, 1000), "resets_at": resets}
         if "context" in data:
             usage["context"] = number(data, "context", 0, 100)
+        session = optional(data, "session", SESSION_ID)  # whose status line: context fullness is per session
         if not usage:
             raise BadRequest("nothing to record")
+        if session and "context" in usage:
+            self.sessions.set_context(session, usage["context"])
         # The limits are the account's, but a session's status line only has them once it has talked to the
         # API: a freshly opened session sends its context alone (Saud's two new sessions blanked Session/Week,
         # 2026-11-25). Keep the last limits and when they arrived, unless they've been reset since.
@@ -314,7 +317,9 @@ class BridgeApp:
                 await self.broadcast({"type": "telemetry", "data": t})
                 gpu = t["gpu"]["usage"] if t["gpu"].get("awake") else 0
                 load = max(t["cpu"].get("usage") or 0, gpu or 0)
-                await self.broadcast({"type": "live", "sessions": self.sessions.live(time.monotonic(), load), "load": load})
+                windows = [(self.latest_usage or {}).get(k) for k in ("five_hour", "seven_day")]
+                limit = max((w["used_percentage"] for w in windows if w), default=None)
+                await self.broadcast({"type": "live", "sessions": self.sessions.live(time.monotonic(), load, limit), "load": load})
             except Exception:  # keep the loop alive, but never silently
                 log.exception("telemetry snapshot failed")
 

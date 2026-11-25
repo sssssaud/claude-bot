@@ -9,6 +9,7 @@ Sent: rate_limits.five_hour / seven_day {used_percentage, resets_at} and context
 Nothing else (no paths, prompts or session ids). Bridge down: your status line still works.
 """
 import json
+import re
 import subprocess
 import sys
 import threading
@@ -30,6 +31,9 @@ def usage_of(data: dict) -> dict:
     ctx = (data.get("context_window") or {}).get("used_percentage")
     if isinstance(ctx, (int, float)):
         out["context"] = ctx
+    sid = data.get("session_id")
+    if out and isinstance(sid, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", sid):
+        out["session"] = sid  # the octo of this session knows its own context fullness
     return out
 
 

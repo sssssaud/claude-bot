@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nearestDisplay, clampOcto, toSaved, fromSaved } from './placement.js';
 import { watchLock } from './screenlock.js';
-import { createSimulator } from '../ui/mood/mood.js';
+import { createSimulator, MOMENTS } from '../ui/mood/mood.js';
 import { MOVES } from '../ui/scene3d/moves.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -56,7 +56,7 @@ const placeKey = o => (o.key === HOME ? HOME : o.label.replace(/ #\d+$/, '')); /
 
 function createOcto(key, label, slot) {
   const o = { key, label, doing: null, sim: createSimulator(), box: NOMINAL_OCTO, extras: [], shaper: null, picked: null,
-    away: false, home: null, attention: null, attentionId: 0, travel: null, pids: [], look: null };
+    away: false, home: null, attention: null, attentionId: 0, travel: null, pids: [], look: null, moments: [] };
   const displays = screen.getAllDisplays();
   const saved = loadPositions()[placeKey(o)];
   let pos = fromSaved(saved, o.box, displays, screen.getPrimaryDisplay().id);
@@ -106,6 +106,7 @@ function syncOctos(sessions) {
     const o = octos.get(s.id) ?? createOcto(s.id, s.project, slot);
     o.label = s.project;
     o.doing = (prefs.showDetails && typeof s.detail === 'string' && s.detail) || s.doing; // option 2: Claude's own words
+    o.moments = Array.isArray(s.moments) ? s.moments.filter(m => Object.hasOwn(MOMENTS, m)) : []; // the session's situations
     if (Array.isArray(s.pids) && s.pids.join() !== o.pids.join()) { o.pids = s.pids; refreshLook(o); }
     attend(o, s);
     if (s.id !== HOME && isNum(s.pressure, 0, 100) && clock() >= manualUntil) o.sim.feed(s.pressure);
@@ -434,7 +435,7 @@ setInterval(() => {
   let first = null;
   for (const o of octos.values()) {
     if (o.win.isDestroyed()) continue;
-    const state = { ...o.sim.state(now), ...shared, look: dockLook ?? o.look, label: o.label, doing: o.doing, emote: o.picked && now < o.picked.until ? o.picked.emote : null };
+    const state = { ...o.sim.state(now), ...shared, look: dockLook ?? o.look, label: o.label, doing: o.doing, moments: o.moments, emote: o.picked && now < o.picked.until ? o.picked.emote : null };
     o.win.webContents.send('sim:state', state);
     first ??= state;
   }

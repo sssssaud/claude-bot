@@ -13,6 +13,13 @@ DONE_S = 8.0  # a finished turn calls the octo over for this long
 # Attention (Saud 2026-11-23): the octo comes to the cursor when its session needs a permission, and
 # when a turn is done. A permission episode ends with the session's next action (answered either way).
 STALE_S = 30 * 60  # no event for 30 min: the session crashed or was closed without SessionEnd
+# Session moments (Saud's pick, 2026-11-25): situations, not single events. The app shows them; how is the
+# personality's business. Order = priority.
+WAIT_LONG_S = 60  # a permission unanswered this long: "waiting_long"
+CONTEXT_FULL = 85  # % of the session's context window: "context_full"
+LONG_TURN_S = 10 * 60  # Claude's own working time on one prompt (time waiting for Saud doesn't count): "long_turn"
+JUGGLING = 2  # sub-agents running at once: "juggling"
+LIMIT_NEAR = 80  # % of the 5-hour or weekly token limit: "limit_near"
 TOOL_DOING = {"Edit": "Editing", "Write": "Editing", "MultiEdit": "Editing", "NotebookEdit": "Editing",
               "Bash": "Running a command", "Read": "Reading code", "Grep": "Reading code", "Glob": "Reading code",
               "WebSearch": "Searching the web", "WebFetch": "Searching the web",
@@ -61,7 +68,8 @@ class Sessions:
                 oldest = min(self.by_id, key=lambda k: self.by_id[k]["seen"])
                 del self.by_id[oldest]
             s = self.by_id[sid] = {"activity": Activity(), "project": "Claude Code", "doing": "Ready", "seen": now, "since": now,
-                                   "attention": None, "attention_at": 0.0, "attention_id": 0}
+                                   "attention": None, "attention_at": 0.0, "attention_id": 0,
+                                   "turn_at": None, "waited": 0.0, "context": None}
         s["seen"] = now
         if ev.get("project"):
             s["project"] = ev["project"]
@@ -73,7 +81,34 @@ class Sessions:
         if doing and not echo:
             s["doing"], s["detail"] = doing, detail_for(ev)
         self._attend(s, ev, now)
+        if ev["event"] == "UserPromptSubmit":
+            s["turn_at"], s["waited"] = now, 0.0  # a new turn: its working time starts now
+        elif ev["event"] == "Stop":
+            s["turn_at"] = None
         return sid, s["activity"].feed(ev, now)
+
+    def set_context(self, sid: str, percent: float):
+        """How full this session's context window is (from its status line). Unknown sessions: ignored."""
+        if sid in self.by_id:
+            self.by_id[sid]["context"] = percent
+
+    @staticmethod
+    def _moments(s: dict, now: float, limit_pct: Optional[float]) -> list:
+        waiting = s["attention"] == "permission"
+        out = []
+        if waiting and now - s["attention_at"] >= WAIT_LONG_S:
+            out.append("waiting_long")
+        if (s["context"] or 0) >= CONTEXT_FULL:
+            out.append("context_full")
+        if s["turn_at"] is not None:
+            worked = now - s["turn_at"] - s["waited"] - (now - s["attention_at"] if waiting else 0)
+            if worked >= LONG_TURN_S:
+                out.append("long_turn")
+        if len(s["activity"].subagents) >= JUGGLING:
+            out.append("juggling")
+        if limit_pct is not None and limit_pct >= LIMIT_NEAR:
+            out.append("limit_near")
+        return out
 
     @staticmethod
     def _attend(s: dict, ev: dict, now: float):
@@ -86,6 +121,8 @@ class Sessions:
             return  # side events: they don't answer a permission
         else:
             want = None  # the session moved on, so a pending permission was answered
+        if s["attention"] == "permission" and (want != "permission" or kind == "PermissionRequest"):
+            s["waited"] += now - s["attention_at"]  # time spent waiting for Saud isn't Claude working
         # a new episode (the octo comes over again): a new kind, or another permission request (a new
         # question, even if the last one was dismissed); the notification that echoes a request is not
         if (want and want != s["attention"]) or kind == "PermissionRequest":
@@ -93,8 +130,9 @@ class Sessions:
             s["attention_at"] = now
         s["attention"] = want  # any real activity ends the episode: answered, or a new prompt after "done"
 
-    def live(self, now: float, system_load: float = 0.0) -> list:
-        """Every live session, oldest first: id, label, pressure, doing. Drops stale ones."""
+    def live(self, now: float, system_load: float = 0.0, limit_pct: Optional[float] = None) -> list:
+        """Every live session, oldest first: id, label, pressure, doing, moments. Drops stale ones.
+        limit_pct: the higher of the 5-hour and weekly token limits used (None = unknown)."""
         for sid in [k for k, s in self.by_id.items() if now - s["seen"] > STALE_S]:
             del self.by_id[sid]
         out, seen_labels = [], {}
@@ -105,5 +143,6 @@ class Sessions:
                 s["attention"] = None
             out.append({"id": sid, "project": label, "doing": s["doing"], "detail": s.get("detail"),
                         "pressure": round(s["activity"].pressure(now, system_load), 1),
-                        "attention": s["attention"], "attention_id": s["attention_id"], "pids": s.get("pids", [])})
+                        "attention": s["attention"], "attention_id": s["attention_id"], "pids": s.get("pids", []),
+                        "moments": self._moments(s, now, limit_pct)})
         return out

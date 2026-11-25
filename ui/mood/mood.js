@@ -115,6 +115,39 @@ export const EXPRESSIONS = {
   '47_vr_gamer': E('open', 'o', { props: ['visor'] }),
   '48_guitar': E('closed', 'smile', { particles: ['notes'] }),
 };
+// ---- session moments (Saud's pick, 2026-11-25): the situation a session is in, as the bridge reports it
+// (bridge/sessions.py). Faces made only of existing parts and unlike the 48 emotes. Each shows MOMENT_S, then
+// rests for `every` s while the situation lasts, so a long situation never turns into a noisy octo.
+// Friendly style; personalities restyle these next. ----
+export const MOMENT_S = 8;
+export const MOMENTS = {
+  waiting_long: { face: E('angry', 'none', { particles: ['dots'] }), every: 20, move: 'shake' }, // you haven't answered
+  context_full: { face: E('dizzy', 'o', { extras: ['blush'] }), every: 90, move: 'bounce' }, // its memory is nearly full
+  long_turn: { face: E('sleepy', 'grit', { extras: ['sweat'] }), every: 90 }, // 10+ minutes on one task
+  juggling: { face: E('happy', 'grit', { extras: ['sweat'], particles: ['sparkles'] }), every: 60 }, // 2+ sub-agents
+  limit_near: { face: E('open', 'grit', { extras: ['sweat'] }), every: 120 }, // token limit 80 %+
+};
+// One octo's moment picker: call it with the session's moments (priority order) every frame; it returns the
+// moment to show now, or null (none, or all resting).
+export function momentPicker() {
+  let showing = null;
+  let until = 0;
+  const restUntil = {};
+  return (moments, now) => {
+    if (showing && now < until && moments.includes(showing)) return showing;
+    showing = null;
+    for (const m of moments) {
+      if (MOMENTS[m] && now >= (restUntil[m] ?? -Infinity)) {
+        showing = m;
+        until = now + MOMENT_S;
+        restUntil[m] = until + MOMENTS[m].every;
+        return m;
+      }
+    }
+    return null;
+  };
+}
+
 export const EXPRESSION_S = 5; // a pool expression shows this long, then the mood's own face returns
 
 export const emoteInterval = (random = Math.random) => 8 + 7 * random(); // seconds, 8–15

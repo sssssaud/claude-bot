@@ -50,7 +50,10 @@ class Activity:
         kind, tool = ev["event"], ev.get("tool") or ""
         if kind == "PostToolUse":
             self.score += WEIGHTS.get(tool, 1)
+            recovered = self.failures >= 2
             self.failures = 0
+            if recovered:  # it works again after errors: relief (Saud's session moments, 2026-11-25)
+                return {"emote": "22_healing", "move": "jump"}
         elif kind == "PostToolUseFailure":
             self.score += WEIGHTS.get(tool, 1)
             if ev.get("interrupt"):  # Saud pressed Esc: not an error
