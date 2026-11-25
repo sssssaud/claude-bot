@@ -270,3 +270,19 @@ export const restyle = (name, emote, move) => {
   const p = personalityOf(name);
   return { emote: swap(p.emotes, emote), move: move == null ? null : swap(p.moves, move) };
 };
+
+// ---- the octo's own feelings (bridge/feelings.py, Saud's pick 2026-11-25): they bend the personality's pools.
+// Low energy → coffee and sleepy faces (and the drained pose); low happiness → gloomy ones; high → extra smiles. ----
+export const FEEL = { low: 35, high: 85 };
+export function feelingPools(pools, feel) {
+  if (!feel) return pools; // feelings off (tray) or no session
+  const out = {};
+  for (const mood of Object.keys(EMOTES)) {
+    const base = pools[mood] ?? EMOTES[mood];
+    if (feel.energy < FEEL.low) out[mood] = ['29_coffee', '23_low_battery', base[0]];
+    else if (feel.happiness < FEEL.low) out[mood] = ['31_rainy', '09_thinking', base[0]];
+    else if (feel.happiness > FEEL.high) out[mood] = [...base, '06_laughing', '03_hug_cat'];
+    else out[mood] = base;
+  }
+  return out;
+}

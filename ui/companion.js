@@ -6,7 +6,7 @@ import './companion.css';
 import { createScene3D } from './scene3d/Scene3D.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, heatColor, ROSE, PINK, mix, rgba,
-  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, momentPicker, personalityOf, restyle, gpuHot,
+  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, momentPicker, personalityOf, restyle, FEEL, feelingPools, gpuHot,
 } from './mood/mood.js';
 
 // same defaults as the bridge (bridge/server.py); config.json overrides them through the bridge
@@ -42,6 +42,11 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
         <input type="range" class="pop-bright-slider" min="5" max="100" value="40" aria-label="Screen brightness">
         <span class="pop-bright-val">–</span>
       </label>
+      <div class="pop-feel" hidden>
+        <span class="pop-lbl">Energy</span><span class="bar"><i class="pop-energy-bar"></i></span><span class="pop-val pop-energy-val">–</span>
+        <span class="pop-lbl">Happiness</span><span class="bar"><i class="pop-happy-bar"></i></span><span class="pop-val pop-happy-val">–</span>
+        <span class="pop-sub pop-feel-why"></span>
+      </div>
       <div class="pop-usage">
         <span class="pop-lbl">Session</span><span class="bar"><i class="pop-session-bar"></i></span><span class="pop-val pop-session-val">–</span>
         <span class="pop-lbl">Week</span><span class="bar"><i class="pop-week-bar"></i></span><span class="pop-val pop-week-val">–</span>
@@ -79,6 +84,12 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   const weekVal = $p('.pop-week-val');
   const weekBar = $p('.pop-week-bar');
   const usageSub = $p('.pop-usage-sub');
+  const feelBox = $p('.pop-feel');
+  const energyVal = $p('.pop-energy-val');
+  const energyBar = $p('.pop-energy-bar');
+  const happyVal = $p('.pop-happy-val');
+  const happyBar = $p('.pop-happy-bar');
+  const feelWhy = $p('.pop-feel-why');
 
   let popupOpen = false;
   let currentBt = false;
@@ -126,6 +137,12 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     btn.disabled = typeof v !== 'boolean';
     btn.classList.toggle('on', v === true);
     if (btn.getAttribute('aria-pressed') !== String(v === true)) btn.setAttribute('aria-pressed', String(v === true));
+  }
+  function showMeter(val, bar, pct, warn) { // a 0–100 meter: number + thin bar, accent when it needs attention
+    setText(val, `${pct}`);
+    const width = `${pct}%`;
+    if (bar.style.width !== width) bar.style.width = width;
+    bar.classList.toggle('hot', warn);
   }
   function showUsage(win, val, bar) { // one Claude Code limit window: "35%" + a thin bar (accent from 80 %)
     const pct = win ? Math.max(0, Math.min(100, Math.round(win.used_percentage))) : null;
@@ -301,7 +318,13 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     if (popupOpen) renderPopup(next);
   }
 
-  function renderPopup({ telemetry: t, controls: c, bridge, usage: u }) {
+  function renderPopup({ telemetry: t, controls: c, bridge, usage: u, feel }) {
+    feelBox.hidden = !feel; // no session, or feelings off in the tray
+    if (feel) {
+      showMeter(energyVal, energyBar, feel.energy, feel.energy < FEEL.low);
+      showMeter(happyVal, happyBar, feel.happiness, feel.happiness < FEEL.low);
+      setText(feelWhy, feel.why);
+    }
     showUsage(u?.five_hour, sessionVal, sessionBar);
     showUsage(u?.seven_day, weekVal, weekBar);
     const stale = u && Date.now() / 1000 - u.received_at > 15 * 60; // status line only updates while Claude Code runs
@@ -369,7 +392,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     else if (t.ram?.percent >= limits.ram_percent_alert) fire('ram', `⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
   }
 
-  function apply({ p, masti, temps, look, sleepy, emote: picked, label: session, doing, telemetry, moments = [], personality }, now) {
+  function apply({ p, masti, temps, look, sleepy, emote: picked, label: session, doing, telemetry, moments = [], personality, feel }, now) {
     const persona = personalityOf(personality); // Friendly / Dramatic / Calm (tray)
     const name = session ?? '';
     if (who.textContent !== name) {
@@ -398,7 +421,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
       loopAt = now + 2;
     }
     const battery = telemetry?.battery;
-    const pose = lowBattery(battery) ? 'drained' : m;
+    const pose = lowBattery(battery) || (feel && feel.energy < FEEL.low) ? 'drained' : m; // low battery or a tired octo
     if (pose !== poseName) {
       poseName = pose;
       scene.setPose(POSE[pose]);
@@ -419,7 +442,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     momentShown = moment;
     let expr = picked ?? local?.emote ?? moment ?? contextEmote(temps, battery, m);
     if (!expr && now >= emoteAt) {
-      poolExpr = nextEmote(m, poolExpr, Math.random, persona.pools);
+      poolExpr = nextEmote(m, poolExpr, Math.random, feelingPools(persona.pools, feel));
       poolUntil = now + EXPRESSION_S;
       emoteAt = now + emoteInterval() * persona.emoteEvery;
     }

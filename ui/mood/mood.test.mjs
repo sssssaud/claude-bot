@@ -6,7 +6,7 @@ import { PARTICLE_KINDS } from '../scene3d/particles.js';
 import { MOVES } from '../scene3d/moves.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, MOMENT_S, momentPicker, PERSONALITIES, personalityOf, restyle, nextEmote, gpuHot,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, MOMENT_S, momentPicker, PERSONALITIES, personalityOf, restyle, nextEmote, FEEL, feelingPools, gpuHot,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -186,4 +186,20 @@ test('personalities: same session, three styles, only real emotes and moves', ()
   calm(['juggling'], 0, 3);
   assert.equal(calm(['juggling'], MOMENT_S + MOMENTS.juggling.every + 1, 3), null, 'calm rests 3x longer');
   assert.equal(calm(['juggling'], MOMENT_S + 3 * MOMENTS.juggling.every, 3), 'juggling');
+});
+
+test('feelings bend the personality\'s pools: tired → coffee, sad → gloomy, happy → extra smiles', () => {
+  const base = PERSONALITIES.friendly.pools;
+  assert.equal(feelingPools(base, null), base, 'feelings off: untouched');
+  const normal = feelingPools(base, { energy: 70, happiness: 70 });
+  assert.deepEqual(normal.overdrive, base.overdrive);
+  assert.deepEqual(normal.idle, EMOTES.idle, 'a mood the personality leaves alone: the default pool');
+  const tired = feelingPools(base, { energy: FEEL.low - 1, happiness: 95 });
+  assert.ok(tired.deep.includes('29_coffee') && !tired.deep.includes('06_laughing'), 'tired wins over happy');
+  assert.ok(feelingPools(base, { energy: 70, happiness: FEEL.low - 1 }).light.includes('31_rainy'));
+  const happy = feelingPools(PERSONALITIES.calm.pools, { energy: 70, happiness: FEEL.high + 1 });
+  assert.ok(happy.deep.includes('14_coding') && happy.deep.includes('06_laughing'));
+  for (const f of [{ energy: 1, happiness: 50 }, { energy: 50, happiness: 1 }, { energy: 50, happiness: 99 }]) {
+    for (const pool of Object.values(feelingPools(base, f))) for (const e of pool) assert.ok(e in EXPRESSIONS, e);
+  }
 });

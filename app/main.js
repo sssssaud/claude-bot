@@ -56,7 +56,7 @@ const placeKey = o => (o.key === HOME ? HOME : o.label.replace(/ #\d+$/, '')); /
 
 function createOcto(key, label, slot) {
   const o = { key, label, doing: null, sim: createSimulator(), box: NOMINAL_OCTO, extras: [], shaper: null, picked: null,
-    away: false, home: null, attention: null, attentionId: 0, travel: null, pids: [], look: null, moments: [] };
+    away: false, home: null, attention: null, attentionId: 0, travel: null, pids: [], look: null, moments: [], feel: null };
   const displays = screen.getAllDisplays();
   const saved = loadPositions()[placeKey(o)];
   let pos = fromSaved(saved, o.box, displays, screen.getPrimaryDisplay().id);
@@ -107,6 +107,9 @@ function syncOctos(sessions) {
     o.label = s.project;
     o.doing = (prefs.showDetails && typeof s.detail === 'string' && s.detail) || s.doing; // option 2: Claude's own words
     o.moments = Array.isArray(s.moments) ? s.moments.filter(m => Object.hasOwn(MOMENTS, m)) : []; // the session's situations
+    const f = s.feel; // its octo's energy + happiness, and why
+    o.feel = f && isNum(f.energy, 0, 100) && isNum(f.happiness, 0, 100) && typeof f.why === 'string'
+      ? { energy: f.energy, happiness: f.happiness, why: f.why.slice(0, 40) } : null;
     if (Array.isArray(s.pids) && s.pids.join() !== o.pids.join()) { o.pids = s.pids; refreshLook(o); }
     attend(o, s);
     if (s.id !== HOME && isNum(s.pressure, 0, 100) && clock() >= manualUntil) o.sim.feed(s.pressure);
@@ -246,7 +249,8 @@ function attend(o, s) {
 // showDetails: the badge says what the session does in Claude's words ("Run all tests", "Editing main.js");
 // off = generic labels only ("Running a command"), e.g. while sharing the screen.
 // personality: Friendly / Dramatic / Calm (ui/mood/mood.js PERSONALITIES), from the tray or the dock.
-const PREFS = { hidden: false, comeOver: true, showDetails: true, personality: 'friendly' };
+// feelings: the octo's energy + happiness (bridge/feelings.py) shape its faces and show in the popup; off = neither.
+const PREFS = { hidden: false, comeOver: true, showDetails: true, personality: 'friendly', feelings: true };
 const prefsPath = () => join(app.getPath('userData'), 'prefs.json');
 let prefs = { ...PREFS };
 function loadPrefs() {
@@ -337,6 +341,8 @@ function refreshTray() {
       click: item => { prefs.comeOver = item.checked; savePrefs(); if (!prefs.comeOver) each(goHome); refreshTray(); } },
     { label: 'Personality', submenu: Object.entries(PERSONALITIES).map(([name, p]) => (
       { label: p.label, type: 'radio', checked: prefs.personality === name, click: () => setPersonality(name) })) },
+    { label: 'Feelings', type: 'checkbox', checked: prefs.feelings,
+      click: item => { prefs.feelings = item.checked; savePrefs(); refreshTray(); } },
     { label: 'Show details', type: 'checkbox', checked: prefs.showDetails,
       click: item => { prefs.showDetails = item.checked; savePrefs(); refreshTray(); } },
     { label: 'Start on login', type: 'checkbox', checked: existsSync(AUTOSTART),
@@ -446,7 +452,7 @@ setInterval(() => {
   let first = null;
   for (const o of octos.values()) {
     if (o.win.isDestroyed()) continue;
-    const state = { ...o.sim.state(now), ...shared, look: dockLook ?? o.look, label: o.label, doing: o.doing, moments: o.moments, emote: o.picked && now < o.picked.until ? o.picked.emote : null };
+    const state = { ...o.sim.state(now), ...shared, look: dockLook ?? o.look, label: o.label, doing: o.doing, moments: o.moments, feel: prefs.feelings ? o.feel : null, emote: o.picked && now < o.picked.until ? o.picked.emote : null };
     o.win.webContents.send('sim:state', state);
     first ??= state;
   }

@@ -319,7 +319,7 @@ class BridgeApp:
                 load = max(t["cpu"].get("usage") or 0, gpu or 0)
                 windows = [(self.latest_usage or {}).get(k) for k in ("five_hour", "seven_day")]
                 limit = max((w["used_percentage"] for w in windows if w), default=None)
-                await self.broadcast({"type": "live", "sessions": self.sessions.live(time.monotonic(), load, limit), "load": load})
+                await self.broadcast({"type": "live", "sessions": self.sessions.live(time.monotonic(), load, limit, time.localtime().tm_hour), "load": load})
             except Exception:  # keep the loop alive, but never silently
                 log.exception("telemetry snapshot failed")
 

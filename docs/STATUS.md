@@ -11,6 +11,20 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Phase C ✅ energy + happiness (Claude, 2026-11-25)
+`bridge/feelings.py` (pure): each session's octo has energy + happiness, 0–100, drifting back to 70 (half-life
+15 min). Events: error −4 happiness (3rd+ in a row −8), fixed after errors +10, finished +8 (10+ min task also −6
+energy). Per minute: overdrive −3 energy, working after midnight–5 am −2 (more in overdrive), idle +3 energy,
+permission waiting 60 s+ −2 happiness. `why` = latest reason; an event's reason stays 2 min before a situation's
+replaces it (test caught "working hard" wiping "fixed it after errors" within a second). `live()` ticks it every
+second (server passes the local hour) and sends `feel`. Octo: energy < 35 → drained pose + coffee/low-battery
+pool; happiness < 35 → rainy/thinking pool; > 85 → extra laughing/hug (`mood.js feelingPools`, bends the
+personality's pools). Popup: Energy / Happiness bars (accent under 35) + reason; hidden without a session.
+Tray "Feelings" switch (off = no effect, no bars). Also: tool events with no known turn (bridge restarted
+mid-turn) now count as a running turn (it said "resting" while Claude worked).
+Checked live: fake session, 6 errors → popup Energy 70 / Happiness 30 (orange) "6 errors in a row"; tray menu
+read over D-Bus shows Feelings ✓.
+
 ## Phase B ✅ personalities (Claude, 2026-11-25)
 `mood.js PERSONALITIES`: one table each. **Friendly** (default): errors → thinking / strong, done → hug, overdrive
 pool strong/lifting/cycling (never angry). **Dramatic**: first error → crying, done → party (birthday), jump →

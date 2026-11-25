@@ -6,6 +6,7 @@ folder's name (never the full path).
 """
 from typing import Optional, Tuple
 
+from . import feelings
 from .activity import Activity
 
 MAX_SESSIONS = 6  # more octos than this would bury the screen; the least recently active one goes
@@ -69,7 +70,7 @@ class Sessions:
                 del self.by_id[oldest]
             s = self.by_id[sid] = {"activity": Activity(), "project": "Claude Code", "doing": "Ready", "seen": now, "since": now,
                                    "attention": None, "attention_at": 0.0, "attention_id": 0,
-                                   "turn_at": None, "waited": 0.0, "context": None}
+                                   "turn_at": None, "waited": 0.0, "context": None, "feel": feelings.Feelings(now)}
         s["seen"] = now
         if ev.get("project"):
             s["project"] = ev["project"]
@@ -81,11 +82,42 @@ class Sessions:
         if doing and not echo:
             s["doing"], s["detail"] = doing, detail_for(ev)
         self._attend(s, ev, now)
+        worked = self._worked(s, now)
         if ev["event"] == "UserPromptSubmit":
             s["turn_at"], s["waited"] = now, 0.0  # a new turn: its working time starts now
         elif ev["event"] == "Stop":
             s["turn_at"] = None
-        return sid, s["activity"].feed(ev, now)
+        elif s["turn_at"] is None and ev["event"] in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
+            s["turn_at"], s["waited"] = now, 0.0  # tools running, start unseen (bridge restarted mid-turn): working
+        reaction = s["activity"].feed(ev, now)
+        self._feel(s, ev, reaction, worked, now)
+        return sid, reaction
+
+    @staticmethod
+    def _worked(s: dict, now: float) -> float:
+        """Claude's own working time on the current prompt: time waiting for Saud doesn't count."""
+        if s["turn_at"] is None:
+            return 0.0
+        waiting = now - s["attention_at"] if s["attention"] == "permission" else 0.0
+        return now - s["turn_at"] - s["waited"] - waiting
+
+    @staticmethod
+    def _feel(s: dict, ev: dict, reaction: Optional[dict], worked: float, now: float):
+        """The one-off nudges to the octo's feelings (bridge/feelings.py)."""
+        feel, kind = s["feel"], ev["event"]
+        if kind == "PostToolUseFailure" and not ev.get("interrupt"):
+            n = s["activity"].failures
+            if n >= 3:
+                feel.nudge(now, f"{n} errors in a row", happiness=feelings.ERRORS_IN_A_ROW)
+            else:
+                feel.nudge(now, "an error", happiness=feelings.ERROR)
+        elif reaction and reaction.get("emote") == "22_healing":
+            feel.nudge(now, "fixed it after errors", happiness=feelings.FIXED)
+        elif kind == "Stop":
+            if worked >= LONG_TURN_S:
+                feel.nudge(now, "finished a long task", happiness=feelings.DONE, energy=feelings.LONG_TASK)
+            else:
+                feel.nudge(now, "finished a task", happiness=feelings.DONE)
 
     def set_context(self, sid: str, percent: float):
         """How full this session's context window is (from its status line). Unknown sessions: ignored."""
@@ -100,10 +132,8 @@ class Sessions:
             out.append("waiting_long")
         if (s["context"] or 0) >= CONTEXT_FULL:
             out.append("context_full")
-        if s["turn_at"] is not None:
-            worked = now - s["turn_at"] - s["waited"] - (now - s["attention_at"] if waiting else 0)
-            if worked >= LONG_TURN_S:
-                out.append("long_turn")
+        if Sessions._worked(s, now) >= LONG_TURN_S:
+            out.append("long_turn")
         if len(s["activity"].subagents) >= JUGGLING:
             out.append("juggling")
         if limit_pct is not None and limit_pct >= LIMIT_NEAR:
@@ -130,9 +160,9 @@ class Sessions:
             s["attention_at"] = now
         s["attention"] = want  # any real activity ends the episode: answered, or a new prompt after "done"
 
-    def live(self, now: float, system_load: float = 0.0, limit_pct: Optional[float] = None) -> list:
-        """Every live session, oldest first: id, label, pressure, doing, moments. Drops stale ones.
-        limit_pct: the higher of the 5-hour and weekly token limits used (None = unknown)."""
+    def live(self, now: float, system_load: float = 0.0, limit_pct: Optional[float] = None, hour: int = 12) -> list:
+        """Every live session, oldest first: id, label, pressure, doing, moments, feel. Drops stale ones.
+        limit_pct: the higher of the 5-hour and weekly token limits used (None = unknown); hour: local, 0–23."""
         for sid in [k for k, s in self.by_id.items() if now - s["seen"] > STALE_S]:
             del self.by_id[sid]
         out, seen_labels = [], {}
@@ -141,8 +171,11 @@ class Sessions:
             label = s["project"] if n == 1 else f"{s['project']} #{n}"  # two sessions in one folder
             if s["attention"] == "done" and now - s["attention_at"] > DONE_S:
                 s["attention"] = None
+            pressure = s["activity"].pressure(now, system_load)
+            moments = self._moments(s, now, limit_pct)
+            s["feel"].tick(now, pressure, s["turn_at"] is not None, "waiting_long" in moments, hour)
             out.append({"id": sid, "project": label, "doing": s["doing"], "detail": s.get("detail"),
-                        "pressure": round(s["activity"].pressure(now, system_load), 1),
+                        "pressure": round(pressure, 1),
                         "attention": s["attention"], "attention_id": s["attention_id"], "pids": s.get("pids", []),
-                        "moments": self._moments(s, now, limit_pct)})
+                        "moments": moments, "feel": s["feel"].snapshot()})
         return out
