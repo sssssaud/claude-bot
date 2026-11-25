@@ -11,6 +11,13 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Personality + session moments + feelings: Saud picked option 3 (2026-11-25), plan waiting for his OK
+Plan: A) bridge computes each session's moments (pure, tested; status line also sends session_id so context
+fullness is per session) → B) 3 personalities in the renderer (tables; tray + dock picker; default Friendly,
+assumed) → C) energy + happiness per session in the bridge, shown in the popup and in pose/face.
+Each phase: tests, live screenshots, commit. Risks: too busy (cooldowns, Calm), wrong detection (only count
+Claude's working time; tests), feelings feel random (popup shows the meters and why).
+
 ## Idea waiting for Saud's pick: session-true expressions + personality (2026-11-25)
 Saud: each octo's face should match its session (heavy session → that kind of face), and the octo should have
 a customisable personality ("friendly or other type") and its own emotions. Ideas only, not built.
