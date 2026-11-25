@@ -1,70 +1,102 @@
 # Claude Bot: Pixel Octo
 
-A transparent, always-on-top desktop companion for Nobara Linux (KDE Plasma, Wayland). A 3D voxel
-version of the Pixel Octo emote character reacts to Claude Code activity and system load, shows
-CPU/GPU/RAM, quick controls and Claude Code token usage in a click popup. One octo per Claude Code session.
+A small 3D voxel octopus for your desktop that shows what each of your Claude Code sessions is doing, so the
+terminals can stay minimised. One octo per running session: it says what its session is working on, comes to
+your cursor when the session needs your permission or has finished, and leaves when the session closes.
 
-![The voxel octo: front, back and three-quarter view](docs/img/octo-phase1.png)
+![Three Claude Code sessions, three octos, each saying what its session is doing](docs/img/multi-session.png)
 
-**Status:** Phase 3 of 7 done. The octo floats on the KDE desktop (transparent, always on top,
-click-through except on the octo and its badge, draggable) with 5 moods, face expressions, 13
-moves, pixel particles, a heat-coloured thinking-verb badge and rotating emote stickers, and it
-looks toward your terminal. Click the badge to open the simulator dock that drives it all
-(pressure, moods, moves, emotes, look target, fake temperatures). Since then: the bridge with real
-data, one octo per session, attention at the cursor, and a tray. Original spec: [`PROMPT.md`](PROMPT.md);
-progress: [`docs/STATUS.md`](docs/STATUS.md); hardware notes: [`docs/HARDWARE.md`](docs/HARDWARE.md).
+| What Claude is doing, in its own words | A task finished | Click an octo |
+|---|---|---|
+| ![badge](docs/img/badge.png) | ![task done card](docs/img/task-done.png) | ![popup](docs/img/popup.png) |
 
-## Setup (Nobara / Fedora, KDE Plasma)
+## What it does
+
+- **One octo per Claude Code session**, labelled with the project folder. It appears when a session starts
+  (starting the app if it isn't running) and waves goodbye when the session ends or its terminal is closed.
+- **Says what's happening** in Claude's own one-line summary ("Run the test suite", "Editing main.js"), and on a
+  permission request, "Needs you: …". Its eyes follow its own session's terminal window.
+- **Comes to your cursor** when its session needs a permission, and when it has finished (then only if that
+  terminal isn't already in front of you).
+- **Reacts to the session**: busy, errors (confused, then relieved when fixed), risky commands, sub-agents,
+  a permission left waiting, a nearly full context window, a long task, the token limit getting close.
+- **Personalities**: Friendly (default), Dramatic or Calm: the same moments in three styles.
+- **Its own feelings**: energy and happiness move with the session (wins, errors, long or late work, rest)
+  and pop up in a "Task done" card.
+- **Click it** for CPU / RAM / GPU / battery, Bluetooth and Wi-Fi toggles, a brightness slider and your
+  Claude Code usage limits (5-hour and weekly). Warnings at 80 % / 95 % usage, hot CPU or GPU, full RAM.
+- **Light**: draws on the integrated GPU, hides while the screen is locked (about 1 % of one core), never
+  wakes a sleeping NVIDIA GPU to read it.
+
+## Requirements
+
+- **Linux with KDE Plasma 6** (Wayland session; the app uses XWayland). Looking at the terminal, coming to the
+  cursor and the brightness slider use KWin / KDE; on other desktops the octos still show but without those.
+- **Claude Code** (the hooks and the status line). Usage limits appear with a Claude subscription.
+- Python 3.10+, Node.js 22.12+, and the KDE / D-Bus tools `./setup.sh` checks for.
+- Tested on Nobara Linux 44 (Fedora-based), Plasma 6.7, Claude Code 2.1.33x, one machine so far.
+
+## Setup
 
 ```bash
+git clone https://github.com/sssssaud/claude-bot.git
+cd claude-bot
 ./setup.sh
 ```
 
-It checks the system (Python 3.10+, Node 22.12+, the KDE / D-Bus tools the app uses) and, if something is
-missing, prints the exact `sudo dnf install …` line and stops; it never runs sudo itself. Then it installs the
-Python parts (`.venv`) and the Node parts (with Electron's binary), builds, runs the tests, and asks before
-connecting Claude Code (hooks + status line in `~/.claude/settings.json`, backed up first). Safe to run again.
+`setup.sh` checks the system and, if something is missing, prints the exact `sudo dnf install …` line and stops
+(it never runs sudo). Then it installs the Python parts (`.venv`) and the Node parts (with Electron), builds,
+runs the tests, and asks before connecting Claude Code. Safe to run again.
 
 ## Run
 
 ```bash
-./run.sh               # bridge + octos: one octo per running Claude Code session (hooks: hooks/README.md)
-                       # click an octo for stats + controls, drag it anywhere, click its badge = simulator dock
-                       # tray icon: Hide/Show, Masti, Come to my cursor, Start on login, Quit
-npm run app            # the octos without the bridge (simulated data only)
-npm run dev:web        # http://127.0.0.1:5173 : the octo + buttons for idle, blink, turnAround, jump, roll
-                       # add ?speed=0.1 to the URL to watch every move in slow motion; drag to orbit
-.venv/bin/python tools/clean_emotes.py   # rebuild assets/emotes-clean/ from the sticker sheet
+./run.sh
 ```
 
-The overlay runs through XWayland (it relaunches itself with `--ozone-platform=x11`) and renders on
-the Intel iGPU, so the RTX 3050 can stay asleep. If XWayland ever misbehaves,
-`CLAUDE_BOT_OZONE=wayland npm run app` runs it as a native Wayland window instead (no always-on-top).
-Details and measurements: [`docs/HARDWARE.md`](docs/HARDWARE.md).
+After that, with the hooks installed, it starts by itself whenever a Claude Code session starts. The tray icon has: Hide / Show octos,
+Simulator dock, Masti, Come to my cursor, Personality, Feelings, Show details, Start on login, Quit.
+Drag an octo anywhere; it remembers the spot per project.
 
-## Test
+## What it changes on your machine
+
+| Where | What | Undo |
+|---|---|---|
+| `~/.claude/settings.json` | hooks on 11 Claude Code events + a status line that wraps yours (asked first, backed up) | `python3 hooks/install.py --uninstall` |
+| `~/.config/claude-bot/` | window positions and tray settings | delete the folder |
+| `~/.config/autostart/claude-bot.desktop` | only if you tick Start on login | untick it |
+| `~/.cache/claude-bot.log` | the app's log when a session starts it | delete it |
+
+It listens only on `127.0.0.1:8765` and refuses requests from web pages. Nothing leaves your machine.
+
+## Privacy
+
+The hook sends the app only: the event name, the tool name, yes/no flags, the session id, the project folder's
+**name**, the terminal's process ids, and a short detail: Claude's own one-line description of a command or
+sub-agent, or a file's **name**. Never your prompts, commands, search text, full paths or messages; anything that
+looks like a key or token is dropped. Tray → **Show details** off turns the detail off (e.g. before sharing your
+screen). Details: [`hooks/README.md`](hooks/README.md).
+
+## Development
 
 ```bash
-npm test                                   # voxel model, face culling, motion, frame budget, window placement
-.venv/bin/python tools/test_clean_emotes.py   # sprite cleaner round trip
+npm run app            # the octo without the bridge (simulated data); click its badge for the simulator dock
+npm run dev:web        # the 3D octo in a browser: http://127.0.0.1:5173 (?speed=0.1 = slow motion)
+npm run test:all       # node tests + bridge tests + sprite check
 ```
-
-## Layout
 
 | Path | What |
 |---|---|
-| `assets/emotes-original/` | the 48 emote PNGs + sticker sheets (reference only, never edited) |
-| `assets/emotes-clean/` | 48 clean transparent sprites + `contact_sheet.png` (generated) |
-| `tools/clean_emotes.py` | sheet → clean sprites |
-| `voxels/octo.json` | hand-authored voxel model (text layers, format in its `about` field) |
-| `ui/scene3d/` | `Scene3D.js` renderer, `moves.js` motion library, `voxels.js` model parser |
-| `ui/companion.*` | octo + badge + emote sticker, driven by a pressure state |
-| `ui/mood/` | mood engine: thresholds, verbs, colours, poses, faces, emote pools, simulator |
-| `ui/overlay.*` | the page the desktop window shows (click and drag) |
-| `ui/dock.*` | the simulator dock window |
-| `app/` | Electron: `main.js` window, `preload.cjs`, `placement.js` (multi-monitor maths), `xinput_shape.py` (click-through) |
-| `docs/` | `HARDWARE.md` (Phase 0 report), `STATUS.md` (progress) |
+| `app/` | Electron: windows, tray, click-through, KWin helper (`kwin.py`), screen lock |
+| `ui/` | the octo page: 3D scene, moods, personalities, popup, simulator dock |
+| `bridge/` | local Python service: sessions, moments, feelings, telemetry, controls |
+| `hooks/` | the Claude Code hook, the status line wrapper and their installer |
+| `voxels/`, `assets/` | the voxel model and the Pixel Octo emote art |
+| `docs/` | `STATUS.md` (build log), `HARDWARE.md` (measurements) |
 
-## Art
+Original spec: [`PROMPT.md`](PROMPT.md) (its keyboard-RGB part was dropped).
 
-The Pixel Octo emote pack in `assets/` is the project owner's own character art.
+## License
+
+Code: [MIT](LICENSE). The Pixel Octo character and its art are **not** MIT: © Shaikh Saud, all rights reserved,
+see [`ART-LICENSE.md`](ART-LICENSE.md).

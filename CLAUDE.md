@@ -55,7 +55,7 @@ Working now:
 
 ## Current status
 - Done: spec, emote pack, UI look approved. Phase 0 hardware report, Phase 1 clean sprites + 3D octo, Phase 2 Electron overlay (all 2026-11-20).
-- Phase 3 ✅ (2026-11-20): moods/face/badge, simulator dock (state lives in main.js, badge opens it), 13 moves, particles, gaze at a look target. Next: Phase 4 (Python bridge + RGB + real terminal position via KWin), plan needs Saud's OK.
+- Phase 3 ✅ (2026-11-20): moods/face/badge, simulator dock (state lives in main.js, badge opens it), 13 moves, particles, gaze at a look target.
 - Stack note: no React (approved badge is plain DOM; see docs/STATUS.md). Badge DOM work runs inside Scene3D's frame (onFrame) to keep CPU down.
 - Blockers: none.
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
