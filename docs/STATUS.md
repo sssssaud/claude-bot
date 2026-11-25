@@ -17,7 +17,11 @@ no `rate_limits` yet (context % only); `/usage` **replaced** the whole stored re
 vanished until an older session redrew its status line (flickering). Fix in `handle_usage` (every sender goes
 through it): keep the last five_hour/seven_day and their `received_at` when a payload lacks them; drop a window
 whose `resets_at` has passed. Popup: "waiting for Claude Code" when no limits at all. Test reproduced it first
-(KeyError five_hour), then passes. Live: real 46 %/31 % arrived, a context-only post (what a new session sends)
+(KeyError five_hour), then passes. **Why the popup can read 1 % under `/usage` (Saud, 2026-11-25: 47/31 vs
+48/32):** not staleness (bridge's limits were 3 s old and still 47.0/31.0 a minute after /usage said 48/32) and
+not us (hook passes the number through, bridge keeps decimals). Claude Code's status line gets the limits from the
+last API response (docs: code.claude.com/docs/en/statusline, "rate_limits … appears only after the first API
+response"); it sent whole numbers here, while `/usage` reads them separately with its own rounding. Don't add +1. Live: real 46 %/31 % arrived, a context-only post (what a new session sends)
 → still 46 %/31 %, same time stamp.
 
 ## Popup redesign: minimal and clean (Claude, 2026-11-25)
