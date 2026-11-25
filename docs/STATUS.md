@@ -11,6 +11,12 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## "GPU 0 % while gaming" is not a bug (Claude, 2026-11-25)
+Saud's popup showed GPU 0 %, 4.3 W, 46 °C while GTA V ran. Evidence: GTA5.exe (wine) runs on the RTX (nvidia-smi:
+58 %, 63 W, P0, 4.2 GB VRAM); the bridge vs nvidia-smi side by side, 5 samples: equal (56–62 %, ~64 W). GTA V's
+settings.xml has `PauseOnFocusLoss value="1"`: switching away (to click the octo, take a screenshot) pauses the
+game → GPU idle. No code change.
+
 ## No session → no octo; a new session starts the bot (Claude, 2026-11-25)
 Saud: "same bug again: the bot stays after closing the session, a new one comes; a second session got no bot".
 Evidence: only one Claude process was running (this conversation, resumed); the other sessions last wrote at
