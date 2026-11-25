@@ -14,11 +14,16 @@ like a secret. A Bash command is checked for risky patterns here; its text is ne
 import json
 import os
 import re
+import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
 URL = "http://127.0.0.1:8765/event"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOG = os.path.expanduser("~/.cache/claude-bot.log")
+DELIVER_S = 30  # a bot started by a session is up in ~3–5 s
 MAX_PIDS = 8
 
 
@@ -93,12 +98,48 @@ def summarize(p: dict) -> dict:
     return ev
 
 
+def post(data: bytes):
+    req = urllib.request.Request(URL, data=data, headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(req, timeout=TIMEOUT_S).close()
+
+
+def start_bot(data: bytes):
+    """Saud 2026-11-25: opening a session starts the bot if it isn't running. Its own process session, so it
+    outlives Claude Code; a second start is harmless (single-instance app, bridge port already taken). A small
+    helper waits for the bridge and delivers this SessionStart, so the octo comes with the session.
+    ponytail: Quit from the tray lasts until the next session opens; add an opt-out if that ever annoys."""
+    os.makedirs(os.path.dirname(LOG), exist_ok=True)
+    with open(LOG, "ab") as log:
+        subprocess.Popen([os.path.join(ROOT, "run.sh")], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log,
+                         stderr=log, start_new_session=True)
+    subprocess.Popen([sys.executable, "-I", os.path.abspath(__file__), "--deliver", data.decode()],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+
+
+def deliver(data: bytes, wait_s: float = DELIVER_S):
+    """The helper: retry the event until the just-started bridge answers (or give up quietly)."""
+    end = time.monotonic() + wait_s
+    while time.monotonic() < end:
+        try:
+            return post(data)
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            time.sleep(0.5)
+
+
 def main():
+    if len(sys.argv) == 3 and sys.argv[1] == "--deliver":
+        deliver(sys.argv[2].encode())
+        sys.exit(0)
     try:
         payload = json.load(sys.stdin)
         data = json.dumps(summarize(payload)).encode()
-        req = urllib.request.Request(URL, data=data, headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=TIMEOUT_S).close()
+        try:
+            post(data)
+        except urllib.error.URLError as e:  # refused = no bot running: a new session starts it
+            if payload.get("hook_event_name") == "SessionStart" and isinstance(e.reason, ConnectionRefusedError):
+                start_bot(data)
+            raise
     except (urllib.error.URLError, TimeoutError, ConnectionError):
         pass  # bridge not running or busy: normal, stay silent
     except Exception as e:  # anything else is a bug in this script: report it, never break Claude Code

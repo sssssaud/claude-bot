@@ -101,7 +101,10 @@ function closeOcto(o) { // session over: wave goodbye, then go
 // Make the set of octos match the live sessions (oldest first). Creates before it closes:
 // with zero windows for a moment Electron would quit.
 function syncOctos(sessions) {
-  const wanted = sessions.length ? sessions : [{ id: HOME, project: 'Claude Bot', doing: null }];
+  // one octo per running Claude Code session, none when there are none (Saud 2026-11-25: a spare octo that
+  // stayed after closing the last session looked like a bug). The idle home octo is only for running
+  // without a bridge (npm run app: simulator).
+  const wanted = sessions.length || bridge.connected ? sessions : [{ id: HOME, project: 'Claude Bot', doing: null }];
   wanted.forEach((s, slot) => {
     const o = octos.get(s.id) ?? createOcto(s.id, s.project, slot);
     o.label = s.project;
@@ -515,6 +518,7 @@ function connectBridge() {
   ws.onclose = () => { // bridge not running or restarted: keep the octos going, retry
     bridge.connected = false;
     bridge.ws = null;
+    if (!octos.size) syncOctos([]); // no bridge at all (npm run app): the simulator's home octo
     if (!quitting) setTimeout(connectBridge, 2000);
   };
 }
@@ -619,7 +623,6 @@ ipcMain.handle('dock:moves', e => (fromDock(e) ? MOVE_NAMES : []));
 app.whenReady().then(() => {
   loadPrefs();
   createTray();
-  syncOctos([]); // the home octo, until the bridge reports sessions
   startKwinHelper();
   lockMon = watchLock(setLocked);
   setInterval(() => each(refreshLook), LOOK_EVERY_MS);

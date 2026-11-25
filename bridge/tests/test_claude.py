@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import os
 import sys
 import threading
 import time
@@ -237,3 +238,33 @@ def test_running_counts_a_zombie_as_gone():
     assert not server.running(child.pid)
     child.wait()
     assert not server.running(child.pid)
+
+
+def test_a_new_session_starts_the_bot_when_it_is_not_running(monkeypatch):
+    """Saud 2026-11-25: a session opened while the bot wasn't running got no octo."""
+    hook = load("claude_hook")
+    monkeypatch.setattr(hook, "URL", "http://127.0.0.1:9/event")  # refused: no bot running
+    started = []
+    monkeypatch.setattr(hook.subprocess, "Popen", lambda cmd, **kw: started.append((cmd, kw)))
+    monkeypatch.setattr(hook, "LOG", os.devnull)
+    t = time.monotonic()
+    code, out = run_main(hook, {"hook_event_name": "SessionStart", "session_id": "s9"}, monkeypatch)
+    assert code == 0 and out == "" and time.monotonic() - t < 0.5, "still instant and silent"
+    (bot, bot_kw), (helper, helper_kw) = started
+    assert bot[0].endswith("/run.sh") and bot_kw["start_new_session"], "detached: outlives Claude Code"
+    assert helper[-2] == "--deliver" and json.loads(helper[-1])["session"] == "s9" and helper_kw["start_new_session"]
+    started.clear()
+    run_main(hook, {"hook_event_name": "PreToolUse", "tool_name": "Bash"}, monkeypatch)
+    assert started == [], "only a session start launches the bot (Quit from the tray sticks until then)"
+
+
+def test_deliver_waits_for_the_bridge(capture, monkeypatch):
+    url, got = capture
+    hook = load("claude_hook")
+    monkeypatch.setattr(hook, "URL", url)
+    hook.deliver(json.dumps({"event": "SessionStart", "session": "s9"}).encode(), wait_s=3)
+    assert got == [{"event": "SessionStart", "session": "s9"}]
+    monkeypatch.setattr(hook, "URL", "http://127.0.0.1:9/event")
+    t = time.monotonic()
+    hook.deliver(b"{}", wait_s=1)
+    assert time.monotonic() - t < 2, "gives up quietly"

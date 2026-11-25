@@ -11,6 +11,18 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## No session → no octo; a new session starts the bot (Claude, 2026-11-25)
+Saud: "same bug again: the bot stays after closing the session, a new one comes; a second session got no bot".
+Evidence: only one Claude process was running (this conversation, resumed); the other sessions last wrote at
+19:35–19:36, the bot was started at 19:38 after a reboot → they reached no bot. "A new one comes" = the spare
+idle home octo `syncOctos` showed whenever there were zero sessions. Fixes: (1) with a bridge connected the
+octos are exactly the sessions (zero → none); the home octo only without any bridge (`npm run app`); (2) the hook,
+on SessionStart with the bridge refusing, starts `run.sh` in its own process session and a helper (`--deliver`)
+re-sends that SessionStart until the bridge answers (≤ 30 s). Saud hadn't picked between Start on login and
+auto-start; auto-start was the suggested one, taken as the default (Start on login stays his tray choice).
+Quit from the tray lasts until the next session opens. Live: bot stopped → fake SessionStart through the hook
+(0.04 s) → bridge up in 0.6 s, its octo shown, app in its own session; all sessions ended → 0 octo windows.
+
 ## Octo leaves when its terminal is closed (Claude, 2026-11-25)
 Saud: an octo stayed on screen after closing. Closing a terminal window can kill Claude Code before it sends
 SessionEnd, so the bridge kept the session until STALE_S (30 min). Now the bridge records each session's Claude
@@ -27,8 +39,7 @@ Saud opened a session (alien language project); no octo. Evidence: no Electron, 
 session, so it died when that session's process ended. Fix now: started detached (`setsid -f ./run.sh`, log
 `~/.cache/claude-bot.log`, own process session). Rule for agents: never start the app as a Claude Code
 background job; use setsid. An already-open session gets its octo on its next hook event (bridge memory starts
-empty). Lasting fix (Saud's pick pending): tray "Start on login" and/or a SessionStart hook that starts the app
-when the bridge is down.
+empty). Lasting fix: done (a new session starts the bot, see "No session → no octo"); Start on login stays optional.
 
 ## `./setup.sh` ✅ one-command setup (Claude, 2026-11-25)
 Steps: system check (python3 ≥ 3.10, node ≥ 22.12 for Electron 45, curl, qdbus, dbus-monitor, bluetoothctl,

@@ -8,7 +8,7 @@ Two scripts connect Claude Code to the bridge (`./run.sh` or `npm run bridge` st
 | `statusline.py` | the status line, wrapping the one you had | 5-hour and weekly `used_percentage` + `resets_at`, context-window %, and the session id (so each octo knows its own session's context fullness). Your old status line still runs and prints exactly as before. |
 
 Both use only the standard library, print nothing to stdout, give up after 0.3 s and always exit 0,
-so a stopped bridge never slows or breaks Claude Code (measured: 37 ms per hook call).
+so a stopped bridge never slows or breaks Claude Code. When a **session starts** and the bot isn't running (connection refused), the hook starts `run.sh` detached and a small helper delivers that SessionStart once the bridge is up (hook itself: ~0.04 s) (measured: 37 ms per hook call).
 
 ```bash
 python3 hooks/install.py --dry-run     # see the change, write nothing
