@@ -105,14 +105,12 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     onControl?.('wifi', !currentWifi);
   });
 
-  brightSlider.addEventListener('input', () => {
+  brightSlider.addEventListener('input', () => { // live while dragging (Saud 2026-11-25); main sends only the newest
     slidingBrightness = true;
     brightVal.textContent = `${brightSlider.value}%`;
-  });
-  brightSlider.addEventListener('change', () => {
-    slidingBrightness = false;
     onControl?.('brightness', +brightSlider.value);
   });
+  brightSlider.addEventListener('change', () => { slidingBrightness = false; });
 
   function togglePopup(force) {
     popupOpen = typeof force === 'boolean' ? force : !popupOpen;

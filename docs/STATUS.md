@@ -11,6 +11,12 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Brightness follows the slider live (Claude, 2026-11-25)
+Saud: brightness only changed on release. The slider now sends on every `input`; main.js `setControl` runs one
+request per control at a time and keeps only the newest waiting value (a set takes 0.07–0.12 s, measured), so
+nothing piles up. Checked live (simulated 1.5 s drag 44 → 30 → 44, KDE's real brightness sampled every 0.1 s):
+44, 40, 34, 31, 30, 32, 38, 44 %; 30 slider moves → 12 bridge requests; ended at 44 %.
+
 ## Octo says what's happening in Claude's words: option 2 (Claude, 2026-11-25)
 Saud asked why the octo's text differs from the terminal's. Terminal spinner words ("Pondering…") are never given
 to hooks; commands/paths were deliberately not sent (privacy). Option 2 (his pick): the hook now also sends a

@@ -506,10 +506,16 @@ const CONTROLS = {
   wifi: v => typeof v === 'boolean' && { enabled: v },
   brightness: v => isInt(v, 5, 100) && { percent: v },
 };
+// One request per control at a time; while one runs, only the newest value waits (a dragged brightness
+// slider sends ~every frame, the bridge takes ~0.1 s: the screen follows the finger, nothing piles up).
+const controlBusy = {};
+const controlNext = {};
 async function setControl(o, type, value) {
   const payload = CONTROLS[type]?.(value);
   if (!payload) return;
   if (!bridge.connected) return notify(o, 'Bridge offline: start it with ./run.sh');
+  if (controlBusy[type]) { controlNext[type] = { o, value }; return; }
+  controlBusy[type] = true;
   try {
     const res = await fetch(`${BRIDGE}/controls/${type}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -520,6 +526,11 @@ async function setControl(o, type, value) {
   } catch (err) {
     console.error(`control ${type} failed:`, err.message);
     notify(o, `Couldn't change ${type}`);
+  } finally {
+    controlBusy[type] = false;
+    const next = controlNext[type];
+    delete controlNext[type];
+    if (next) setControl(next.o, type, next.value);
   }
 }
 
