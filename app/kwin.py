@@ -35,7 +35,8 @@ for (const w of workspace.windowList()) {
 }
 const g = best && best.frameGeometry;
 callDBus("%s", "/Cursor", "%s", "Text", best ? JSON.stringify({x: Math.round(g.x), y: Math.round(g.y),
-  w: Math.round(g.width), h: Math.round(g.height), min: best.minimized}) : "none");"""
+  w: Math.round(g.width), h: Math.round(g.height), min: best.minimized,
+  active: best === workspace.activeWindow}) : "none");"""
 PIDS = re.compile(r"^win((?: \d{1,7}){1,8})$")
 
 

@@ -11,6 +11,14 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## "Done" walk only when the terminal isn't in front (Claude, 2026-11-25)
+`app/kwin.py`'s window answer now has `active` (`best === workspace.activeWindow`, Plasma 6). In `comeOver`, a
+**done** session whose terminal is active and not minimised gets its flipJump in place (log: "<project>: done,
+its terminal is in front: reacting in place"); otherwise it walks over as before. Permission requests always come.
+Checked live: KWin answers active=true for a just-opened test window, active=false once minimised, true for
+this session's kitty; fake session A (pids = this kitty, in front) → logged "reacting in place"; fake session B
+(minimised test window) → no such line, walked over.
+
 ## Low-battery reaction (Claude, 2026-11-25)
 Spec 3.6 row "Battery under 20 %, unplugged → 23 low_battery, sleep-ish droop". `ui/mood/mood.js`: `lowBattery(b)`
 (unplugged and < 20 %; no reading = no reaction) and `contextEmote(temps, battery, mood)` (was `tempEmote`):

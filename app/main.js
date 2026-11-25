@@ -155,7 +155,7 @@ async function askCursor() { // { x, y } in screen pixels, or null
   const m = /^(-?\d+) (-?\d+)$/.exec((await askKwin('?')) ?? '');
   return m ? { x: +m[1], y: +m[2] } : null;
 }
-async function askWindow(pids) { // the session's terminal window { x, y, w, h, min }, or null
+async function askWindow(pids) { // the session's terminal window { x, y, w, h, min, active }, or null
   const answer = await askKwin(`win ${pids.join(' ')}`);
   let w;
   try {
@@ -163,7 +163,7 @@ async function askWindow(pids) { // the session's terminal window { x, y, w, h, 
   } catch {
     return null; // "none" (no window: tmux, ssh, headless) or no answer
   }
-  const ok = w && isInt(w.x, -1e5, 1e5) && isInt(w.y, -1e5, 1e5) && isInt(w.w, 1, 1e5) && isInt(w.h, 1, 1e5) && typeof w.min === 'boolean';
+  const ok = w && isInt(w.x, -1e5, 1e5) && isInt(w.y, -1e5, 1e5) && isInt(w.w, 1, 1e5) && isInt(w.h, 1, 1e5) && typeof w.min === 'boolean' && typeof w.active === 'boolean';
   return ok ? w : null;
 }
 
@@ -200,9 +200,16 @@ function glide(o, to, then) { // move the window there over TRAVEL_MS, legs flai
 }
 
 async function comeOver(o, kind) {
+  const move = kind === 'done' ? 'flipJump' : 'jump';
+  if (kind === 'done' && o.pids.length) { // you're already looking at that terminal: cheer in place, don't walk over
+    const w = await askWindow(o.pids);
+    if (w?.active && !w.min) {
+      console.error(`${o.label}: done, its terminal is in front: reacting in place`);
+      return o.win.isDestroyed() || o.win.webContents.send('octo:play', move);
+    }
+  }
   const cursor = await askCursor();
   if (o.win.isDestroyed()) return;
-  const move = kind === 'done' ? 'flipJump' : 'jump';
   if (!cursor) return o.win.webContents.send('octo:play', move); // can't find the cursor: react in place
   if (!o.away) {
     const [x, y] = o.win.getPosition();
