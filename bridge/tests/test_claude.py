@@ -206,3 +206,34 @@ async def test_status_line_context_belongs_to_its_session(cli):
     assert (await cli.post("/event", json={"event": "UserPromptSubmit", "session": "abc-123"})).status == 200
     assert (await cli.post("/usage", json={"context": 90, "session": "abc-123"})).status == 200
     assert (await cli.post("/usage", json={"context": 9, "session": "a b"})).status == 400
+
+
+def test_owner_pid_skips_shells_and_dead_pids(monkeypatch):
+    import psutil
+    from bridge import server
+    names = {10: "bash", 11: "claude", 12: "kitty"}
+
+    class P:
+        def __init__(self, pid):
+            if pid not in names:
+                raise psutil.NoSuchProcess(pid)
+            self.pid = pid
+
+        def name(self):
+            return names[self.pid]
+    monkeypatch.setattr(server.psutil, "Process", P)
+    assert server.owner_pid([9, 10, 11, 12]) == 11, "dead 9 and shell 10 skipped: the Claude Code process"
+    assert server.owner_pid([10]) is None
+
+
+def test_running_counts_a_zombie_as_gone():
+    import subprocess
+    from bridge import server
+    child = subprocess.Popen(["sleep", "30"])
+    assert server.running(child.pid)
+    child.kill()
+    import time
+    time.sleep(0.2)  # dead, not collected yet: a zombie
+    assert not server.running(child.pid)
+    child.wait()
+    assert not server.running(child.pid)

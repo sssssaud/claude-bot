@@ -11,6 +11,16 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Octo leaves when its terminal is closed (Claude, 2026-11-25)
+Saud: an octo stayed on screen after closing. Closing a terminal window can kill Claude Code before it sends
+SessionEnd, so the bridge kept the session until STALE_S (30 min). Now the bridge records each session's Claude
+Code process (`owner_pid`: first hook ancestor that isn't a shell) and, every second, `Sessions.end_gone(running)`
+ends sessions whose process is gone (a zombie counts as gone). Unknown owner → as before (SessionEnd / stale).
+Tests: end_gone, owner_pid (dead + shell skipped), running (zombie). Live: fake session owned by a `sleep`; killed
+→ session gone within 3 s, log "its Claude Code process is gone, octo leaves". (First live try didn't end: the
+fake owner was a bash subshell, which owner_pid skips by design.) This session's real chain bash → claude →
+bash → kitty → owner = claude.
+
 ## No octo for a new session: the app wasn't running (Claude, 2026-11-25)
 Saud opened a session (alien language project); no octo. Evidence: no Electron, bridge down; hooks installed
 (11 entries), no project override. Cause: Claude started `./run.sh` as a background job of its own Claude Code

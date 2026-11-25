@@ -76,6 +76,8 @@ class Sessions:
             s["project"] = ev["project"]
         if ev.get("pids"):
             s["pids"] = ev["pids"]
+        if ev.get("owner"):
+            s["owner"] = ev["owner"]  # the session's Claude Code process (the server finds it among the pids)
         doing = doing_for(ev)
         # the notification that echoes a permission request carries no tool: keep the request's own words
         echo = ev["event"] == "Notification" and ev.get("kind") == "permission_prompt" and s["attention"] == "permission"
@@ -118,6 +120,14 @@ class Sessions:
                 feel.nudge(now, "finished a long task", happiness=feelings.DONE, energy=feelings.LONG_TASK)
             else:
                 feel.nudge(now, "finished a task", happiness=feelings.DONE)
+
+    def end_gone(self, alive) -> list:
+        """End every session whose Claude Code process is gone (terminal closed with no SessionEnd sent).
+        alive(pid) -> bool is the I/O, passed in. Returns the ended ids."""
+        gone = [sid for sid, s in self.by_id.items() if s.get("owner") and not alive(s["owner"])]
+        for sid in gone:
+            del self.by_id[sid]
+        return gone
 
     def set_context(self, sid: str, percent: float):
         """How full this session's context window is (from its status line). Unknown sessions: ignored."""

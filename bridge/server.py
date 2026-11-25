@@ -83,6 +83,30 @@ def number(data: dict, key: str, lo: float, hi: float) -> float:
     return float(v)
 
 
+SHELLS = {"sh", "bash", "dash", "zsh", "fish"}
+
+
+def owner_pid(pids: list):
+    """The session's Claude Code process: the first of the hook's ancestors that isn't a shell (a shell that ran
+    the hook would be gone in a moment). None = can't tell, the session then ends only by SessionEnd or going stale.
+    ponytail: no start-time check; a reused pid only delays the goodbye to STALE_S."""
+    for pid in pids:
+        try:
+            if psutil.Process(pid).name() not in SHELLS:
+                return pid
+        except psutil.Error:
+            continue
+    return None
+
+
+def running(pid: int) -> bool:
+    """Alive and not a zombie (a dead process its parent hasn't collected yet still has a pid)."""
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.Error:
+        return False
+
+
 def flag(data: dict, key: str) -> bool:
     v = data.get(key)
     if not isinstance(v, bool):
@@ -237,6 +261,8 @@ class BridgeApp:
         for key in ("interrupt", "risky"):
             if key in data:
                 ev[key] = flag(data, key)
+        if ev.get("pids") and ev["event"] != "SessionEnd":
+            ev["owner"] = owner_pid(ev["pids"])
         session, reaction = self.sessions.feed(ev, time.monotonic())
         if reaction:
             await self.broadcast({"type": "cmd", "cmd": "react", "session": session, **reaction})
@@ -317,6 +343,8 @@ class BridgeApp:
                 await self.broadcast({"type": "telemetry", "data": t})
                 gpu = t["gpu"]["usage"] if t["gpu"].get("awake") else 0
                 load = max(t["cpu"].get("usage") or 0, gpu or 0)
+                for sid in self.sessions.end_gone(running):
+                    log.info("session %s: its Claude Code process is gone, octo leaves", sid[:8])
                 windows = [(self.latest_usage or {}).get(k) for k in ("five_hour", "seven_day")]
                 limit = max((w["used_percentage"] for w in windows if w), default=None)
                 await self.broadcast({"type": "live", "sessions": self.sessions.live(time.monotonic(), load, limit, time.localtime().tm_hour), "load": load})

@@ -158,3 +158,14 @@ def test_relief_after_errors():
     a.feed(ev("PostToolUseFailure", tool="Bash"), 2)
     a.feed(ev("PostToolUseFailure", tool="Bash"), 3)
     assert a.feed(ev("PostToolUse", tool="Bash"), 4) == {"emote": "22_healing", "move": "jump"}
+
+
+def test_a_closed_terminal_ends_its_session_even_without_session_end():
+    """Saud 2026-11-25: closing a terminal can kill Claude Code before it sends SessionEnd; its octo stayed."""
+    s = Sessions()
+    s.feed(ev("UserPromptSubmit", "a", project="alien", pids=[500, 400], owner=500), 0)
+    s.feed(ev("UserPromptSubmit", "b", project="other", pids=[600], owner=600), 0)
+    s.feed(ev("UserPromptSubmit", "c", project="no-owner"), 0)
+    alive = {600}
+    assert s.end_gone(lambda pid: pid in alive) == ["a"]
+    assert [x["project"] for x in s.live(1)] == ["other", "no-owner"], "unknown owner: left to SessionEnd / stale"
