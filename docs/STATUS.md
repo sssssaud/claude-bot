@@ -11,6 +11,20 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## `./setup.sh` ✅ one-command setup (Claude, 2026-11-25)
+Steps: system check (python3 ≥ 3.10, node ≥ 22.12 for Electron 45, curl, qdbus, dbus-monitor, bluetoothctl,
+nmcli, python3-dbus + python3-gobject-base for app/kwin.py; missing → prints `sudo dnf install /usr/bin/<tool> …`
+(dnf resolves the package by file, right on any release) and stops, never runs sudo) → `.venv` + requirements →
+`npm install` + Electron binary → build → `npm run test:all` → asks before `python3 hooks/install.py` (skipped
+without a terminal). Idempotent: re-run in the real repo → all "ok", git status unchanged.
+**Found by the fresh-clone test:** Electron 45 has no install script (binary downloads on first `require`), and
+run.sh starts the binary directly → a fresh machine would fail. Now setup.sh and run.sh both run Electron's
+`install.js` when the binary is missing. Verified: fresh clone in a path with a space → setup exit 0 (Electron
+45.4.1, 28 + 63 tests) → its `./run.sh` started the octos (bridge up, 0 error lines). Missing-tool path tested
+with a made-up tool name (prints the dnf line, exit 1).
+Lesson: don't test "missing tools" by stripping PATH under Claude Code's shell wrapper: its snapshot re-spawned
+bash in a chain (1,731 shells; collapsed on its own, nothing lost). Use a made-up tool name instead.
+
 ## Phase C ✅ energy + happiness (Claude, 2026-11-25)
 `bridge/feelings.py` (pure): each session's octo has energy + happiness, 0–100, drifting back to 70 (half-life
 15 min). Events: error −4 happiness (3rd+ in a row −8), fixed after errors +10, finished +8 (10+ min task also −6

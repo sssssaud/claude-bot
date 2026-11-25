@@ -38,13 +38,12 @@ Folders other than `assets/` are created phase by phase, not all up front.
 
 ## Build / run commands
 Working now:
-- Setup: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && npm install`
+- Setup: `./setup.sh` (checks system tools, prints the dnf line if any are missing; .venv, npm + Electron binary, build, tests; asks before installing the Claude Code hooks)
 - `./run.sh`: bridge + octos (the normal way). Quit from the tray icon. Start on login: tray checkbox (writes ~/.config/autostart/claude-bot.desktop).
 - `npm run app`: octos only, simulated data (Electron relaunches itself on XWayland; `CLAUDE_BOT_OZONE=wayland` = native)
 - `npm run dev:web`: 3D octo in a plain browser at http://127.0.0.1:5173 (`?speed=0.1` = slow motion)
 - `npm run test:all`: node tests + bridge pytest + sprite self-check
 - `.venv/bin/python tools/test_clean_emotes.py`, then `.venv/bin/python tools/clean_emotes.py`
-Still to come: `./setup.sh` (one-command setup).
 
 ## Working rules
 - Map (goal → steps → risks → fallback) before each phase; wait for my OK.
@@ -62,5 +61,5 @@ Still to come: `./setup.sh` (one-command setup).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - 2026-11-23: agy's Phase 4a reviewed + fixed; Claude Code hooks + token usage built and tested (`hooks/`), installed 2026-11-23 (undo: `python3 hooks/install.py --uninstall`). Start everything with `./run.sh`.
 - 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, via app/kwin.py). Tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit) + single instance built. Keyboard RGB removed (Saud's decision). Eyes follow each session's real terminal window (app/kwin.py). Next: Saud picks (voice → text / one-command setup).
-- 2026-11-25: voice → text skipped by Saud (parked, not deleted). Screen-lock pause built + measured (28 % → 1.4 % of a core while locked). Low-battery + full-battery reactions built + checked live (dock Battery slider: < 20 drained, 100 = plugged in → hop); battery reader no longer fakes 100 %. "Done" walk only when the terminal isn't in front (KWin `active`). Octo shows Claude's own summary of each step (option 2, tray "Show details"). Brightness live while dragging. Popup redesigned minimal (4 locked tokens, Inter, beside the octo). Phases A (session moments), B (personalities Friendly/Dramatic/Calm) and C (energy + happiness, popup bars, tray Feelings) done. Next: `./setup.sh`.
+- 2026-11-25: voice → text skipped by Saud (parked, not deleted). Screen-lock pause built + measured (28 % → 1.4 % of a core while locked). Low-battery + full-battery reactions built + checked live (dock Battery slider: < 20 drained, 100 = plugged in → hop); battery reader no longer fakes 100 %. "Done" walk only when the terminal isn't in front (KWin `active`). Octo shows Claude's own summary of each step (option 2, tray "Show details"). Brightness live while dragging. Popup redesigned minimal (4 locked tokens, Inter, beside the octo). Phases A (session moments), B (personalities Friendly/Dramatic/Calm) and C (energy + happiness, popup bars, tray Feelings) done. `./setup.sh` done 2026-11-25 (fresh clone → setup → run.sh verified). All planned work done.
 - Save-file: `docs/STATUS.md`. Handover for another agent: `HANDOVER.md` (2026-11-21, Claude weekly quota at 86 %).

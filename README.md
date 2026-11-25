@@ -14,12 +14,16 @@ looks toward your terminal. Click the badge to open the simulator dock that driv
 data, one octo per session, attention at the cursor, and a tray. Original spec: [`PROMPT.md`](PROMPT.md);
 progress: [`docs/STATUS.md`](docs/STATUS.md); hardware notes: [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
-## Setup (Nobara / Fedora)
+## Setup (Nobara / Fedora, KDE Plasma)
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-npm install
+./setup.sh
 ```
+
+It checks the system (Python 3.10+, Node 22.12+, the KDE / D-Bus tools the app uses) and, if something is
+missing, prints the exact `sudo dnf install …` line and stops; it never runs sudo itself. Then it installs the
+Python parts (`.venv`) and the Node parts (with Electron's binary), builds, runs the tests, and asks before
+connecting Claude Code (hooks + status line in `~/.claude/settings.json`, backed up first). Safe to run again.
 
 ## Run
 

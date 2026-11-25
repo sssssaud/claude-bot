@@ -17,6 +17,8 @@ if ! curl -s --max-time 1 http://127.0.0.1:8765/health > /dev/null; then
 fi
 
 npm run build --silent
+# Electron 45 has no install script: its binary comes on first use, but we start it directly, so fetch it here
+[ -x node_modules/electron/dist/electron ] || node node_modules/electron/install.js
 # Pass the platform flag here: without it the app relaunches itself (app/main.js), this script sees
 # the first process exit at once and the EXIT trap killed the bridge (found 2026-11-23).
 ./node_modules/electron/dist/electron . --ozone-platform="${CLAUDE_BOT_OZONE:-x11}"
