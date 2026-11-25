@@ -87,6 +87,8 @@ for (const id of Object.keys(SHOW)) {
 
 // ---- shared state from the main process (10 Hz while the dock is open) ----
 const moodButtons = [...$('moods').children];
+const personaButtons = [...$('personas').children];
+for (const b of personaButtons) b.addEventListener('click', () => bridge.setPersonality(b.dataset.name));
 bridge.onState(s => {
   state = s;
   const m = moodOf(s.p, s.masti);
@@ -95,4 +97,9 @@ bridge.onState(s => {
   if (!sliding) pressure.value = Math.round(s.p);
   $('demo').setAttribute('aria-pressed', String(Boolean(s.demo)));
   moodButtons.forEach((b, i) => b.classList.toggle('act', MOODS[i] === m));
+  for (const b of personaButtons) {
+    const on = b.dataset.name === s.personality;
+    b.classList.toggle('act', on);
+    if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+  }
 });

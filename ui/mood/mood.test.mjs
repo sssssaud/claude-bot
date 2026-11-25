@@ -6,7 +6,7 @@ import { PARTICLE_KINDS } from '../scene3d/particles.js';
 import { MOVES } from '../scene3d/moves.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, MOMENT_S, momentPicker, gpuHot,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, fullBatteryWatch, MOMENTS, MOMENT_S, momentPicker, PERSONALITIES, personalityOf, restyle, nextEmote, gpuHot,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -161,4 +161,29 @@ test('session moments: real parts, real moves, one at a time, then rest', () => 
   const p2 = momentPicker();
   p2(['waiting_long'], 0);
   assert.equal(p2([], 1), null, 'answered: the impatient face goes at once');
+});
+
+test('personalities: same session, three styles, only real emotes and moves', () => {
+  assert.deepEqual(Object.keys(PERSONALITIES), ['friendly', 'dramatic', 'calm']);
+  for (const [name, p] of Object.entries(PERSONALITIES)) {
+    for (const [from, to] of Object.entries(p.emotes)) assert.ok(from in EXPRESSIONS && (to === null || to in EXPRESSIONS), `${name}: ${from} → ${to}`);
+    for (const [from, to] of Object.entries(p.moves)) assert.ok(from in MOVES && (to === null || to in MOVES), `${name}: ${from} → ${to}`);
+    for (const [mood, pool] of Object.entries(p.pools)) {
+      assert.ok(mood in EMOTES && pool.length, `${name}: ${mood}`);
+      for (const e of pool) assert.ok(e in EXPRESSIONS, `${name}: ${e}`);
+    }
+    for (const k of ['emoteEvery', 'momentRest', 'fidget']) assert.ok(p[k] > 0, `${name}: ${k}`);
+  }
+  assert.deepEqual(restyle('friendly', '05_crying', 'bounce'), { emote: '18_strong', move: 'bounce' }, 'friendly: encouraging');
+  assert.deepEqual(restyle('dramatic', '08_confused', 'bounce'), { emote: '05_crying', move: 'tumble' }, 'dramatic: big');
+  assert.deepEqual(restyle('calm', '44_magic', undefined), { emote: null, move: null }, 'calm: only what matters');
+  assert.deepEqual(restyle('calm', '07_surprised', 'jump'), { emote: '07_surprised', move: 'bounce' }, 'calm still says "needs you"');
+  assert.equal(personalityOf('nope'), PERSONALITIES.friendly, 'unknown name: Friendly');
+  assert.ok(PERSONALITIES.friendly.pools.overdrive.every(e => e !== '11_angry'), 'friendly never gets angry');
+  assert.equal(nextEmote('deep', null, () => 0, PERSONALITIES.calm.pools), '14_coding', 'calm pool');
+  assert.equal(nextEmote('light', null, () => 0, PERSONALITIES.calm.pools), '16_reading');
+  const calm = momentPicker();
+  calm(['juggling'], 0, 3);
+  assert.equal(calm(['juggling'], MOMENT_S + MOMENTS.juggling.every + 1, 3), null, 'calm rests 3x longer');
+  assert.equal(calm(['juggling'], MOMENT_S + 3 * MOMENTS.juggling.every, 3), 'juggling');
 });

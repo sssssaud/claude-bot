@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nearestDisplay, clampOcto, toSaved, fromSaved } from './placement.js';
 import { watchLock } from './screenlock.js';
-import { createSimulator, MOMENTS } from '../ui/mood/mood.js';
+import { createSimulator, MOMENTS, PERSONALITIES, restyle } from '../ui/mood/mood.js';
 import { MOVES } from '../ui/scene3d/moves.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -245,13 +245,15 @@ function attend(o, s) {
 // prefs.json in the app's config folder: { hidden, comeOver, showDetails }. Bad or missing file = defaults.
 // showDetails: the badge says what the session does in Claude's words ("Run all tests", "Editing main.js");
 // off = generic labels only ("Running a command"), e.g. while sharing the screen.
-const PREFS = { hidden: false, comeOver: true, showDetails: true };
+// personality: Friendly / Dramatic / Calm (ui/mood/mood.js PERSONALITIES), from the tray or the dock.
+const PREFS = { hidden: false, comeOver: true, showDetails: true, personality: 'friendly' };
 const prefsPath = () => join(app.getPath('userData'), 'prefs.json');
 let prefs = { ...PREFS };
 function loadPrefs() {
   try {
     const raw = JSON.parse(readFileSync(prefsPath(), 'utf8'));
-    for (const k of Object.keys(PREFS)) if (typeof raw[k] === 'boolean') prefs[k] = raw[k];
+    for (const k of Object.keys(PREFS)) if (typeof raw[k] === typeof PREFS[k]) prefs[k] = raw[k];
+    if (!Object.hasOwn(PERSONALITIES, prefs.personality)) prefs.personality = PREFS.personality;
   } catch (err) {
     if (err.code !== 'ENOENT') console.error('prefs.json unreadable, using defaults:', err.message);
   }
@@ -303,6 +305,13 @@ function applyShown() { // hidden windows don't draw: no CPU
   if (!on) dock?.hide();
 }
 
+function setPersonality(name) {
+  if (!Object.hasOwn(PERSONALITIES, name) || prefs.personality === name) return;
+  prefs.personality = name;
+  savePrefs();
+  refreshTray();
+}
+
 function setHidden(on) {
   prefs.hidden = on;
   savePrefs();
@@ -326,6 +335,8 @@ function refreshTray() {
     { type: 'separator' },
     { label: 'Come to my cursor', type: 'checkbox', checked: prefs.comeOver,
       click: item => { prefs.comeOver = item.checked; savePrefs(); if (!prefs.comeOver) each(goHome); refreshTray(); } },
+    { label: 'Personality', submenu: Object.entries(PERSONALITIES).map(([name, p]) => (
+      { label: p.label, type: 'radio', checked: prefs.personality === name, click: () => setPersonality(name) })) },
     { label: 'Show details', type: 'checkbox', checked: prefs.showDetails,
       click: item => { prefs.showDetails = item.checked; savePrefs(); refreshTray(); } },
     { label: 'Start on login', type: 'checkbox', checked: existsSync(AUTOSTART),
@@ -428,7 +439,7 @@ function currentTemps(now) {
 setInterval(() => {
   const now = clock();
   const shared = {
-    temps: currentTemps(now), bridge: bridge.connected,
+    temps: currentTemps(now), bridge: bridge.connected, personality: prefs.personality,
     telemetry: now < fakeTempsUntil ? { ...bridge.telemetry, battery: { percent: fakeBattery, plugged: fakeBattery >= 100 } } : bridge.telemetry,
     controls: bridge.controls, usage: bridge.usage, config: bridge.config,
   };
@@ -456,8 +467,9 @@ function applyCommand(m) {
   else if (m.cmd === 'react' && isEmote(m.emote)) { // a Claude Code moment: only that session's octo reacts
     const o = octos.get(m.session) ?? (octos.size === 1 ? [...octos.values()][0] : null);
     if (!o || o.win.isDestroyed()) return;
-    o.picked = { emote: m.emote, until: now + 6 };
-    if (MOVE_NAMES.includes(m.move)) o.win.webContents.send('octo:play', m.move);
+    const r = restyle(prefs.personality, m.emote, m.move); // the same moment in this personality's style
+    if (r.emote) o.picked = { emote: r.emote, until: now + 6 };
+    if (MOVE_NAMES.includes(r.move)) o.win.webContents.send('octo:play', r.move);
   } else console.warn('bridge: ignored command', JSON.stringify(m).slice(0, 200));
 }
 
@@ -574,6 +586,7 @@ ipcMain.on('sim:pressure', (e, v) => {
   if (fromDock(e) && isNum(v, 0, 100)) { each(o => o.sim.setPressure(v, clock())); manualUntil = clock() + MANUAL_S; }
 });
 ipcMain.on('sim:masti', e => { if (fromDock(e)) each(o => o.sim.toggleMasti(clock())); });
+ipcMain.on('sim:personality', (e, name) => { if (fromDock(e)) setPersonality(name); }); // same setting as the tray
 ipcMain.on('sim:demo', (e, on) => { if (fromDock(e) && typeof on === 'boolean') each(o => o.sim.setDemo(on, clock())); });
 ipcMain.on('sim:temps', (e, t) => {
   if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110) && isNum(t?.battery, 0, 100)) {

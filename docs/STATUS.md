@@ -11,6 +11,17 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Phase B ✅ personalities (Claude, 2026-11-25)
+`mood.js PERSONALITIES`: one table each. **Friendly** (default): errors → thinking / strong, done → hug, overdrive
+pool strong/lifting/cycling (never angry). **Dramatic**: first error → crying, done → party (birthday), jump →
+flipJump, bounce → tumble; idle pool cozy/cloud/rainy, overdrive angry/lifting/crying; pool faces, moments and
+fidgets come back faster (×0.6 / ×0.5 / ×0.5). **Calm**: errors → thinking, risky → surprised, web/sub-agent/relief
+reactions off, big moves → bounce or none; one quiet emote per mood; ×2.5 / ×3 / ×3 slower. Needs-you and done
+stay in every personality. `restyle()` in main.js applies it to each Claude Code reaction; the renderer uses
+the pools, timing and moment moves. Picked from the tray (radio submenu "Personality") or the dock (same saved
+pref, `prefs.json personality`). Checked live: same 3-errors moment → Friendly strong (happy, smirk, sweat),
+Dramatic crying + tumble, Calm thinking (…); tray menu read over D-Bus shows the radio items.
+
 ## Phase A ✅ session moments (Claude, 2026-11-25)
 `bridge/sessions.py` reports each session's situations in priority order (`live(...)["moments"]`):
 waiting_long (permission unanswered ≥ 60 s) · context_full (≥ 85 %, per session: status line now sends

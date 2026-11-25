@@ -133,14 +133,14 @@ export function momentPicker() {
   let showing = null;
   let until = 0;
   const restUntil = {};
-  return (moments, now) => {
+  return (moments, now, restScale = 1) => { // restScale: the personality's (Calm rests longer)
     if (showing && now < until && moments.includes(showing)) return showing;
     showing = null;
     for (const m of moments) {
       if (MOMENTS[m] && now >= (restUntil[m] ?? -Infinity)) {
         showing = m;
         until = now + MOMENT_S;
-        restUntil[m] = until + MOMENTS[m].every;
+        restUntil[m] = until + MOMENTS[m].every * restScale;
         return m;
       }
     }
@@ -151,8 +151,8 @@ export function momentPicker() {
 export const EXPRESSION_S = 5; // a pool expression shows this long, then the mood's own face returns
 
 export const emoteInterval = (random = Math.random) => 8 + 7 * random(); // seconds, 8–15
-export function nextEmote(mood, current, random = Math.random) {
-  const options = EMOTES[mood].filter(e => e !== current);
+export function nextEmote(mood, current, random = Math.random, pools = EMOTES) {
+  const options = (pools[mood] ?? EMOTES[mood]).filter(e => e !== current);
   return options[Math.floor(random() * options.length)];
 }
 
@@ -234,3 +234,39 @@ export function fullBatteryWatch() {
   };
 }
 export const gpuHot = ({ gpu } = {}) => gpu > TEMP.gpuHot; // sweat now, melt in Phase 3c
+
+// ---- personalities (Saud's pick, 2026-11-25): the same session in three styles; Friendly is the default.
+// emotes / moves: how a Claude Code reaction is restyled (missing = as is, null = no reaction);
+// pools: a mood's emote pool (missing = the default EMOTES); emoteEvery / momentRest / fidget: multipliers for
+// how often pool emotes, moments and idle fidgets come back (bigger = calmer). ----
+export const PERSONALITIES = {
+  friendly: {
+    label: 'Friendly',
+    emotes: { '05_crying': '18_strong', '08_confused': '09_thinking', '10_idea': '03_hug_cat' }, // encouraging; done = a hug
+    moves: {},
+    pools: { overdrive: ['18_strong', '19_lifting', '38_cycling'] }, // works hard, never angry
+    emoteEvery: 1, momentRest: 1, fidget: 1,
+  },
+  dramatic: {
+    label: 'Dramatic',
+    emotes: { '08_confused': '05_crying', '10_idea': '41_birthday', '04_cool': '41_birthday' }, // cries at once; done = party
+    moves: { jump: 'flipJump', bounce: 'tumble' },
+    pools: { idle: ['20_cozy', '37_cloud', '31_rainy'], overdrive: ['11_angry', '19_lifting', '05_crying'] },
+    emoteEvery: 0.6, momentRest: 0.5, fidget: 0.5,
+  },
+  calm: {
+    label: 'Calm',
+    emotes: { '05_crying': '09_thinking', '08_confused': '09_thinking', '40_devil': '07_surprised',
+      '46_traveler': null, '44_magic': null, '22_healing': null }, // only what matters: errors, risky, needs you, done
+    moves: { flipJump: 'bounce', jump: 'bounce', tumble: null, peekTurn: null, shake: null },
+    pools: { idle: ['29_coffee'], light: ['16_reading'], deep: ['14_coding'], overdrive: ['18_strong'], masti: ['04_cool'] },
+    emoteEvery: 2.5, momentRest: 3, fidget: 3,
+  },
+};
+export const personalityOf = name => PERSONALITIES[name] ?? PERSONALITIES.friendly;
+const swap = (table, key) => (key in table ? table[key] : key);
+// a Claude Code reaction { emote, move } in this personality's style (either may become null: none)
+export const restyle = (name, emote, move) => {
+  const p = personalityOf(name);
+  return { emote: swap(p.emotes, emote), move: move == null ? null : swap(p.moves, move) };
+};

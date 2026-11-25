@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('dockBridge', {
   setPressure: v => ipcRenderer.send('sim:pressure', v),
   toggleMasti: () => ipcRenderer.send('sim:masti'),
+  setPersonality: name => ipcRenderer.send('sim:personality', name),
   setDemo: on => ipcRenderer.send('sim:demo', on),
   setTemps: temps => ipcRenderer.send('sim:temps', temps),
   showEmote: name => ipcRenderer.send('sim:emote', name),
