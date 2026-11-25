@@ -308,6 +308,7 @@ Feasibility, checked 2026-11-21 on this laptop (no root needed for any of it):
 - GPU numbers only while the RTX 3050 is awake; when asleep the popup says so (reading it wakes it).
 
 ## Voice → text, step 1: the model runs locally (Claude, 2026-11-24)
+**SKIPPED (Saud, 2026-11-25: "is idea ko bhi skip karo").** Code parked in `bridge/voice.py` (+ tests, mic fix included); its 3 pip deps are commented out in requirements.txt; model still at `models/` (1.5 GB, gitignored) until Saud says delete. Notes below kept for if it ever comes back.
 
 Saud said go for the local Hinglish option (built-in `/voice` left untested; Hindi support unknown).
 - Model: `Oriserve/Whisper-Hindi2Hinglish-Prime` @ `4edf7b8` (Whisper large-v3 fine-tune, writes Hindi in

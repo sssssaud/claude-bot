@@ -6,7 +6,8 @@ psutil          # CPU, RAM, battery and coretemp sensors
 nvidia-ml-py    # NVIDIA NVML query (strictly used only when dGPU is active)
 pytest          # unit tests for the bridge
 pytest-asyncio  # async test support
-faster-whisper==1.2.1   # voice → text (bridge/voice.py): Whisper on the RTX 3050 through CTranslate2
-nvidia-cublas-cu12      # CUDA 12 cuBLAS for CTranslate2, inside the venv (nothing system-wide)
-nvidia-cudnn-cu12==9.*  # cuDNN 9 for CTranslate2
+# Voice → text was skipped (Saud, 2026-11-25); bridge/voice.py is parked. Uncomment these 3 lines to use it.
+# faster-whisper==1.2.1   # voice → text (bridge/voice.py): Whisper on the RTX 3050 through CTranslate2
+# nvidia-cublas-cu12      # CUDA 12 cuBLAS for CTranslate2, inside the venv (nothing system-wide)
+# nvidia-cudnn-cu12==9.*  # cuDNN 9 for CTranslate2
 # The speech model itself (models/hinglish-prime-int8, 1.5 GB) is made once; see docs/STATUS.md "Voice".

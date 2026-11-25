@@ -1,7 +1,7 @@
 # Claude Bot (Pixel Octo)
 
 ## Project goal
-**Purpose (Saud, 2026-11-23):** show what each Claude Code session is doing: one octo per running session, so terminals can stay minimised. Later: comes to the cursor for permissions / when done; voice → text input (the bot itself never speaks). Details: docs/STATUS.md "Saud's vision".
+**Purpose (Saud, 2026-11-23):** show what each Claude Code session is doing: one octo per running session, so terminals can stay minimised. Comes to the cursor for permissions / when done (built 2026-11-24). Voice → text: **skipped** (Saud, 2026-11-25; code parked in bridge/voice.py). The bot itself never speaks. Details: docs/STATUS.md "Saud's vision".
 
 A transparent, always-on-top desktop companion for Nobara Linux. A 3D voxel version of my Pixel Octo emote character floats on screen, reacts to Claude Code activity and system load (0–100 pressure), shows thinking verbs in a heat-coloured badge, and shows CPU/GPU/RAM, controls and token usage in a click popup. (Keyboard RGB was in the original spec; removed by Saud 2026-11-24.)
 
@@ -62,4 +62,5 @@ Still to come: `./setup.sh` (one-command setup).
 - Electron gotchas (measured, see docs/HARDWARE.md): never `appendSwitch('ozone-platform')` (GPU crash); env vars set in main.js don't reach the GPU process.
 - 2026-11-23: agy's Phase 4a reviewed + fixed; Claude Code hooks + token usage built and tested (`hooks/`), installed 2026-11-23 (undo: `python3 hooks/install.py --uninstall`). Start everything with `./run.sh`.
 - 2026-11-24: one octo per Claude Code session built and live (bridge/sessions.py, hooks send session id + folder name). Attention built (octo comes to the cursor for permissions / when done, via app/kwin.py). Tray (Hide/Show, dock, Masti, Come to my cursor, Start on login, Quit) + single instance built. Keyboard RGB removed (Saud's decision). Eyes follow each session's real terminal window (app/kwin.py). Next: Saud picks (voice → text / one-command setup).
+- 2026-11-25: voice → text skipped by Saud (parked, not deleted). Left: screen-lock pause, low-battery reaction, done-walk fix, `./setup.sh`, beauty pass.
 - Save-file: `docs/STATUS.md`. Handover for another agent: `HANDOVER.md` (2026-11-21, Claude weekly quota at 86 %).
