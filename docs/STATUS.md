@@ -11,6 +11,15 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Published as v1.0.0 (Claude, 2026-11-25)
+Pre-publish check (ship-clean): login sssssaud, repo already public, no secrets in 175 tracked files, .env/.venv/
+models/node_modules/dist ignored, fresh clone → setup → run proven earlier. Fixed: no LICENSE → **MIT for code**
+(`LICENSE`) + **Pixel Octo art all rights reserved** (`ART-LICENSE.md`: assets/, voxels/octo.json, app/icon.png,
+docs/img/); Saud said "go" without picking, so his suggested option 1 was taken. README rewritten (features,
+requirements: KDE Plasma 6 + Claude Code, what it changes + undo, privacy, dev, license) with new screenshots
+(badge, task-done card, popup) from a test app. GitHub description no longer says "keyboard RGB"; topics added;
+tag `v1.0.0` pushed. Still nice to have: a GIF, a GitHub release page.
+
 ## Energy + happiness pop up when a task is done (Claude, 2026-11-25)
 Saud: take energy/happiness out of the popup; they should pop up when work is done (read as: a card on "done").
 The click popup no longer has them. main.js `attend()` sends `octo:done` with the session's feelings from that same
