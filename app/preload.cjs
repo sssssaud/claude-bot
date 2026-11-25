@@ -12,5 +12,6 @@ contextBridge.exposeInMainWorld('octoBridge', {
   onPlay: fn => ipcRenderer.on('octo:play', (_e, name) => fn(name)),
   onNotice: fn => ipcRenderer.on('octo:notice', (_e, text) => fn(text)),
   onTravel: fn => ipcRenderer.on('octo:travel', (_e, on) => fn(on === true)),
+  onDone: fn => ipcRenderer.on('octo:done', (_e, feel) => fn(feel)),
   clicked: () => ipcRenderer.send('octo:clicked'),
 });

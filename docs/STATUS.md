@@ -11,6 +11,15 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Energy + happiness pop up when a task is done (Claude, 2026-11-25)
+Saud: take energy/happiness out of the popup; they should pop up when work is done (read as: a card on "done").
+The click popup no longer has them. main.js `attend()` sends `octo:done` with the session's feelings from that same
+live update (the 10 Hz renderer state is older: the first version showed the pre-finish numbers, 72 "fixed it
+after errors" instead of 80 "finished a task"); the overlay shows a small "✓ Task done" card (same 4 tokens) beside
+the octo for 6 s, not while the popup is open, not when Feelings is off. Placement shared with the popup
+(`beside()`). Live: fake session errors → fix → Stop → card "Energy 70 · Happiness 80 · finished a task", gone
+after 6 s; popup without Energy/Happiness.
+
 ## "GPU 0 % while gaming" is not a bug (Claude, 2026-11-25)
 Saud's popup showed GPU 0 %, 4.3 W, 46 °C while GTA V ran. Evidence: GTA5.exe (wine) runs on the RTX (nvidia-smi:
 58 %, 63 W, P0, 4.2 GB VRAM); the bridge vs nvidia-smi side by side, 5 samples: equal (56–62 %, ~64 W). GTA V's

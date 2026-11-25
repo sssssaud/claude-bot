@@ -19,6 +19,7 @@ bridge.onState(state => { window.__state = state; companion.update(state); }); /
 bridge.onPlay(name => octo.play(name));
 bridge.onNotice(text => companion.notify(text)); // e.g. a quick control failed
 bridge.onTravel(on => octo.setDragging(on)); // legs flail while it glides to the cursor, bounce on arrival
+bridge.onDone(feel => companion.showDone(feel)); // a task finished: the energy + happiness card
 
 const DRAG_PX = 4; // less movement than this between press and release is a click
 let press = null;

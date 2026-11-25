@@ -243,6 +243,8 @@ function attend(o, s) {
   o.attention = s.attention;
   if (s.attention && s.attention_id !== o.attentionId) {
     o.attentionId = s.attention_id;
+    // energy + happiness card, with the numbers from this very update (they include the task's +8; the 10 Hz state is older)
+    if (s.attention === 'done' && !o.win.isDestroyed()) o.win.webContents.send('octo:done', prefs.feelings ? o.feel : null);
     if (mayCome(s.attention)) comeOver(o, s.attention);
   } else if (!s.attention && o.away) goHome(o);
 }

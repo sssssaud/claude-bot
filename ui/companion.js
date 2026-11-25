@@ -42,15 +42,18 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
         <input type="range" class="pop-bright-slider" min="5" max="100" value="40" aria-label="Screen brightness">
         <span class="pop-bright-val">–</span>
       </label>
-      <div class="pop-feel" hidden>
-        <span class="pop-lbl">Energy</span><span class="bar"><i class="pop-energy-bar"></i></span><span class="pop-val pop-energy-val">–</span>
-        <span class="pop-lbl">Happiness</span><span class="bar"><i class="pop-happy-bar"></i></span><span class="pop-val pop-happy-val">–</span>
-        <span class="pop-sub pop-feel-why"></span>
-      </div>
       <div class="pop-usage">
         <span class="pop-lbl">Session</span><span class="bar"><i class="pop-session-bar"></i></span><span class="pop-val pop-session-val">–</span>
         <span class="pop-lbl">Week</span><span class="bar"><i class="pop-week-bar"></i></span><span class="pop-val pop-week-val">–</span>
         <span class="pop-sub pop-usage-sub">waiting for Claude Code</span>
+      </div>
+    </div>
+    <div class="done-card" role="status" aria-live="polite">
+      <div class="done-head"><span class="done-tick" aria-hidden="true">✓</span>Task done</div>
+      <div class="pop-feel">
+        <span class="pop-lbl">Energy</span><span class="bar"><i class="pop-energy-bar"></i></span><span class="pop-val pop-energy-val">–</span>
+        <span class="pop-lbl">Happiness</span><span class="bar"><i class="pop-happy-bar"></i></span><span class="pop-val pop-happy-val">–</span>
+        <span class="pop-sub pop-feel-why"></span>
       </div>
     </div>
     <div class="toast" role="status" aria-live="polite"></div>`);
@@ -84,12 +87,16 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   const weekVal = $p('.pop-week-val');
   const weekBar = $p('.pop-week-bar');
   const usageSub = $p('.pop-usage-sub');
-  const feelBox = $p('.pop-feel');
-  const energyVal = $p('.pop-energy-val');
-  const energyBar = $p('.pop-energy-bar');
-  const happyVal = $p('.pop-happy-val');
-  const happyBar = $p('.pop-happy-bar');
-  const feelWhy = $p('.pop-feel-why');
+  // the card that pops up by itself when a task is done (Saud 2026-11-25: energy + happiness there, not in the popup)
+  const doneCard = layer.querySelector('.done-card');
+  const $d = sel => doneCard.querySelector(sel);
+  const energyVal = $d('.pop-energy-val');
+  const energyBar = $d('.pop-energy-bar');
+  const happyVal = $d('.pop-happy-val');
+  const happyBar = $d('.pop-happy-bar');
+  const feelWhy = $d('.pop-feel-why');
+  const DONE_CARD_MS = 6000;
+  let doneTimer = null;
 
   let popupOpen = false;
   let currentBt = false;
@@ -225,6 +232,27 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     place();
   }
 
+  // beside the octo (never over its head), on the roomier side; above/below only when neither side fits
+  function beside(el, fallbackW, fallbackH) {
+    const pw = el.offsetWidth || fallbackW;
+    const ph = el.offsetHeight || fallbackH;
+    const limit = Math.min(layer.clientWidth, (screen.availLeft ?? 0) + screen.availWidth - window.screenX) - 8;
+    const leftEdge = Math.max(8, (screen.availLeft ?? 0) - window.screenX + 8);
+    const roomRight = limit - (octo.x + octo.width);
+    const roomLeft = octo.x - leftEdge;
+    let px = null;
+    let py = Math.max(8, Math.min(layer.clientHeight - ph - 8, octo.y + (octo.height - ph) / 2));
+    // the roomier side; in a tight window it may slide over the octo's side a little, never its head
+    if (Math.max(roomRight, roomLeft) >= pw * 0.75) {
+      px = roomRight >= roomLeft ? Math.min(octo.x + octo.width + 6, limit - pw) : Math.max(leftEdge, octo.x - pw - 6);
+    } else { // no room on either side: below the octo, else above it
+      px = Math.max(8, Math.min(layer.clientWidth - pw - 8, octo.x + (octo.width - pw) / 2));
+      py = octo.y + octo.height + 8;
+      if (py + ph > layer.clientHeight) py = Math.max(8, octo.y - ph - 8);
+    }
+    return [px, py];
+  }
+
   function place() {
     if (!octo) return;
     const bw = badge.offsetWidth;
@@ -244,24 +272,9 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
 
 
 
-    if (popupOpen) { // beside the octo (never over its head), on the side with room on screen
-      const pw = popup.offsetWidth || 236;
-      const ph = popup.offsetHeight || 250;
-      const leftEdge = Math.max(8, (screen.availLeft ?? 0) - window.screenX + 8);
-      const roomRight = limit - (octo.x + octo.width);
-      const roomLeft = octo.x - leftEdge;
-      let px = null;
-      let py = Math.max(8, Math.min(layer.clientHeight - ph - 8, octo.y + (octo.height - ph) / 2));
-      // the roomier side; in a tight window it may slide over the octo's side a little, never its head
-      if (Math.max(roomRight, roomLeft) >= pw * 0.75) {
-        px = roomRight >= roomLeft ? Math.min(octo.x + octo.width + 6, limit - pw) : Math.max(leftEdge, octo.x - pw - 6);
-      } else { // no room on either side: below the octo, else above it
-        px = Math.max(8, Math.min(layer.clientWidth - pw - 8, octo.x + (octo.width - pw) / 2));
-        py = octo.y + octo.height + 8;
-        if (py + ph > layer.clientHeight) py = Math.max(8, octo.y - ph - 8);
-      }
-      moveTo(popup, px, py);
-    }
+    if (popupOpen) moveTo(popup, ...beside(popup, 236, 250));
+    else if (doneCard.classList.contains('show')) moveTo(doneCard, ...beside(doneCard, 200, 110));
+
 
     const tw = toast.offsetWidth || 180;
     const th = toast.offsetHeight || 30;
@@ -318,13 +331,18 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     if (popupOpen) renderPopup(next);
   }
 
-  function renderPopup({ telemetry: t, controls: c, bridge, usage: u, feel }) {
-    feelBox.hidden = !feel; // no session, or feelings off in the tray
-    if (feel) {
-      showMeter(energyVal, energyBar, feel.energy, feel.energy < FEEL.low);
-      showMeter(happyVal, happyBar, feel.happiness, feel.happiness < FEEL.low);
-      setText(feelWhy, feel.why);
-    }
+  function showDone(feel) { // a task finished: how the octo feels now, for a few seconds (not while the popup is open)
+    if (!feel || popupOpen) return; // null: Feelings off in the tray
+    showMeter(energyVal, energyBar, feel.energy, feel.energy < FEEL.low);
+    showMeter(happyVal, happyBar, feel.happiness, feel.happiness < FEEL.low);
+    setText(feelWhy, feel.why);
+    doneCard.classList.add('show');
+    place();
+    clearTimeout(doneTimer);
+    doneTimer = setTimeout(() => doneCard.classList.remove('show'), DONE_CARD_MS);
+  }
+
+  function renderPopup({ telemetry: t, controls: c, bridge, usage: u }) {
     showUsage(u?.five_hour, sessionVal, sessionBar);
     showUsage(u?.seven_day, weekVal, weekBar);
     const stale = u && Date.now() / 1000 - u.received_at > 15 * 60; // status line only updates while Claude Code runs
@@ -526,5 +544,5 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     }
   }
 
-  return { update, scene, mood: () => mood, togglePopup, notify: triggerToast };
+  return { update, scene, mood: () => mood, togglePopup, notify: triggerToast, showDone };
 }

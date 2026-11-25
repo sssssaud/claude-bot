@@ -46,10 +46,12 @@
    canvas #121014 · surface #1D1A20 · ink #F1ECE8 · accent #FF7A45 (the octo's own orange: only "on",
    the brightness fill and usage over 80 %). Muted text = ink at 62 %. Contrast on canvas: ink 16.1:1,
    muted 6.7:1, accent 7.3:1 (WCAG AA). One typeface: Inter (installed; Sora/JetBrains Mono were not). ---- */
-.popup {
+.popup, .done-card {
   --canvas: #121014; --surface: #1d1a20; --ink: #f1ece8; --accent: #ff7a45;
   --muted: rgb(241 236 232 / .62); --hair: rgb(241 236 232 / .08); --track: rgb(241 236 232 / .12);
   --ease: cubic-bezier(.32, .72, 0, 1);
+}
+.popup {
   position: absolute; left: 0; top: 0; box-sizing: border-box;
   width: 236px; padding: 14px;
   display: grid; gap: 14px;
@@ -110,13 +112,27 @@
 .pop-bright-slider:disabled { opacity: .45; cursor: default; }
 
 /* Claude Code limits: label, thin bar, number; reset time under them */
-.pop-usage, .pop-feel { display: grid; grid-template-columns: auto minmax(0, 1fr) 3ch; align-items: center; gap: 6px 10px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.pop-usage { display: grid; grid-template-columns: auto minmax(0, 1fr) 3ch; align-items: center; gap: 6px 10px; padding-top: 14px; border-top: 1px solid var(--hair); }
 .pop-usage .pop-val, .pop-feel .pop-val { font-size: 12px; }
-.pop-feel[hidden] { display: none; }
 .pop-usage .pop-sub, .pop-feel .pop-sub { text-align: right; }
 .bar { height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
 .bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: rgb(241 236 232 / .8); transition: width .4s var(--ease); }
 .bar i.hot { background: var(--accent); }
+
+/* ---- "Task done" card: pops up by itself for a few seconds with the octo's energy + happiness ---- */
+.done-card {
+  position: absolute; left: 0; top: 0; box-sizing: border-box; width: 200px; padding: 12px 14px;
+  display: grid; gap: 10px; pointer-events: none;
+  background: var(--canvas); color: var(--ink);
+  border: 1px solid var(--hair); border-radius: 14px; box-shadow: 0 12px 32px rgb(0 0 0 / .5);
+  font: 500 12px/1.3 Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums;
+  opacity: 0; visibility: hidden; translate: 0 6px; will-change: transform;
+  transition: opacity .25s var(--ease), translate .35s var(--ease), visibility 0s .25s, transform .35s var(--ease);
+}
+.done-card.show { opacity: 1; visibility: visible; translate: 0 0; transition-delay: 0s; }
+.done-head { display: flex; align-items: center; gap: 6px; font-weight: 600; letter-spacing: -.01em; }
+.done-tick { color: var(--accent); }
+.done-card .pop-feel { display: grid; grid-template-columns: auto minmax(0, 1fr) 3ch; align-items: center; gap: 6px 10px; }
 
 /* ---- Alert Toasts ---- */
 .toast {
@@ -135,7 +151,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .badge.hot .slot { animation: none; }
-  .badge, .badge .w, .popup, .toast, .pop-toggle, .bar i { transition: none; }
+  .badge, .badge .w, .popup, .toast, .pop-toggle, .bar i, .done-card { transition: none; }
   .popup { animation: none; }
 }
 
