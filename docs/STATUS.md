@@ -11,6 +11,16 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Screen-lock pause (Claude, 2026-11-25)
+Spec 3.3 ("pause when the screen is locked"). `app/screenlock.js` runs `dbus-monitor` on KDE's
+`org.freedesktop.ScreenSaver.ActiveChanged(bool)` (flushes per message even into a pipe: checked with a harmless
+test signal on a made-up interface). Locked → every octo hides (same path as tray Hide; Saud's saved Hide pref
+untouched); unlocked → back in place; a session still waiting for permission → its octo comes to the cursor
+then (not tested live: no permission request happened during the test). Watcher dies → `onChange(false)`, octos
+never stay lost. Test: `app/screenlock.test.mjs` (parser, real captured output).
+**Measured live (Saud pressed Meta+L, 2026-11-25), whole app, % of one core:** before 28.2 % (28 samples) →
+locked **1.4 %** (41 samples, 0.3–5.0) → after 28.4 %. Log: "screen locked: octos hidden" / "screen unlocked: octos back".
+
 ## Tray, Quit, start on login (Claude, 2026-11-24)
 
 - Tray icon (KDE system tray, StatusNotifierItem; icon = the octo's front view rendered from
@@ -393,7 +403,7 @@ The point of the bot: **show what each Claude Code session is doing**, so termin
   XWayland; fallbacks are `CLAUDE_BOT_OZONE=wayland` or a full-width bottom-strip window.
 
 ## Blockers / open questions
-- Screen-lock pause (spec 3.3) not done yet: Phase 7, together with the tray's Sleep.
+- ~~Screen-lock pause (spec 3.3)~~ done 2026-11-25 (see its section).
 - ~~`lookAt` needs the cursor position~~ solved 2026-11-24: KWin script gives cursor + terminal window positions.
 - Blush colour for the face: not sampled yet (the clean sprites lose the tiny cheeks). Phase 3 expressions.
 - Project path has a space in a parent folder (`Projects/claude bot/claude-bot`). Fine so far.

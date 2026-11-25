@@ -8,6 +8,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nearestDisplay, clampOcto, toSaved, fromSaved } from './placement.js';
+import { watchLock } from './screenlock.js';
 import { createSimulator } from '../ui/mood/mood.js';
 import { MOVES } from '../ui/scene3d/moves.js';
 
@@ -55,7 +56,7 @@ const placeKey = o => (o.key === HOME ? HOME : o.label.replace(/ #\d+$/, '')); /
 
 function createOcto(key, label, slot) {
   const o = { key, label, doing: null, sim: createSimulator(), box: NOMINAL_OCTO, extras: [], shaper: null, picked: null,
-    away: false, home: null, attentionId: 0, travel: null, pids: [], look: null };
+    away: false, home: null, attention: null, attentionId: 0, travel: null, pids: [], look: null };
   const displays = screen.getAllDisplays();
   const saved = loadPositions()[placeKey(o)];
   let pos = fromSaved(saved, o.box, displays, screen.getPrimaryDisplay().id);
@@ -83,7 +84,7 @@ function createOcto(key, label, slot) {
   lockDown(o.win);
   startShaper(o);
   setInputRegion(o); // fully click-through until the page reports the octo
-  o.win.once('ready-to-show', () => { if (!prefs.hidden) o.win.showInactive(); });
+  o.win.once('ready-to-show', () => { if (shown()) o.win.showInactive(); });
   o.win.on('closed', () => { o.shaper?.stdin.end(); octos.delete(key); });
   o.win.loadFile(join(here, '../dist/overlay.html'));
   octos.set(key, o);
@@ -170,7 +171,7 @@ async function askWindow(pids) { // the session's terminal window { x, y, w, h, 
 // taskbar spot when the window is minimised. Re-checked every few seconds (windows move).
 const LOOK_EVERY_MS = 3000;
 async function refreshLook(o) {
-  if (!o.pids.length || prefs.hidden || o.win.isDestroyed()) return;
+  if (!o.pids.length || !shown() || o.win.isDestroyed()) return;
   const w = await askWindow(o.pids);
   if (!w) { o.look = null; return; }
   const cx = w.x + w.w / 2;
@@ -221,11 +222,14 @@ function goHome(o) {
   if (o.home) glide(o, o.home);
 }
 
+const mayCome = kind => shown() && prefs.comeOver &&
+  bridge.config?.attention?.[{ permission: 'come_for_permission', done: 'come_when_done' }[kind]] !== false;
+
 function attend(o, s) {
-  const allowed = { permission: 'come_for_permission', done: 'come_when_done' }[s.attention];
+  o.attention = s.attention;
   if (s.attention && s.attention_id !== o.attentionId) {
     o.attentionId = s.attention_id;
-    if (bridge.config?.attention?.[allowed] !== false && prefs.comeOver && !prefs.hidden) comeOver(o, s.attention);
+    if (mayCome(s.attention)) comeOver(o, s.attention);
   } else if (!s.attention && o.away) goHome(o);
 }
 
@@ -273,15 +277,34 @@ function setAutostart(on) {
   }
 }
 
+// Octos show unless hidden from the tray (saved) or the screen is locked (spec 3.3; not saved).
+let locked = false;
+let lockMon = null;
+const shown = () => !prefs.hidden && !locked;
+
+function applyShown() { // hidden windows don't draw: no CPU
+  const on = shown();
+  for (const o of octos.values()) {
+    if (o.win.isDestroyed()) continue;
+    if (!on) { goHome(o); o.win.hide(); continue; }
+    o.win.showInactive();
+    if (o.attention === 'permission' && mayCome('permission')) comeOver(o, 'permission'); // still waiting for you
+  }
+  if (!on) dock?.hide();
+}
+
 function setHidden(on) {
   prefs.hidden = on;
   savePrefs();
-  for (const o of octos.values()) {
-    if (o.win.isDestroyed()) continue;
-    if (on) { goHome(o); o.win.hide(); } else o.win.showInactive(); // hidden windows don't draw: no CPU
-  }
-  if (on) dock?.hide();
+  applyShown();
   refreshTray();
+}
+
+function setLocked(on) {
+  if (on === locked) return; // KDE can announce the same state twice
+  locked = on;
+  console.error(on ? 'screen locked: octos hidden' : 'screen unlocked: octos back');
+  if (!prefs.hidden) applyShown();
 }
 
 let tray = null;
@@ -553,6 +576,7 @@ app.whenReady().then(() => {
   createTray();
   syncOctos([]); // the home octo, until the bridge reports sessions
   startKwinHelper();
+  lockMon = watchLock(setLocked);
   setInterval(() => each(refreshLook), LOOK_EVERY_MS);
   connectBridge();
   for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, () => each(settle));
@@ -561,6 +585,6 @@ app.whenReady().then(() => {
   if (!globalShortcut.register(MASTI_KEY, () => each(o => o.sim.toggleMasti(clock())))) console.error(`could not register ${MASTI_KEY}`);
 });
 app.on('before-quit', () => { quitting = true; });
-app.on('will-quit', () => { globalShortcut.unregisterAll(); kwin?.stdin.end(); });
+app.on('will-quit', () => { globalShortcut.unregisterAll(); kwin?.stdin.end(); lockMon?.kill(); });
 // octos come and go with sessions; the app ends only through the tray's Quit (or a signal)
 app.on('window-all-closed', () => {});
