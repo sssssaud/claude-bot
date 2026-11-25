@@ -11,6 +11,18 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Low-battery reaction (Claude, 2026-11-25)
+Spec 3.6 row "Battery under 20 %, unplugged → 23 low_battery, sleep-ish droop". `ui/mood/mood.js`: `lowBattery(b)`
+(unplugged and < 20 %; no reading = no reaction) and `contextEmote(temps, battery, mood)` (was `tempEmote`):
+hot CPU > low battery > snowy. New pose `POSE.drained` (slow, small bob, head down) replaces the mood's pose while
+low; Claude Code reactions still win for their 6 s; the badge keeps showing what the session is doing.
+Dock "Telemetry override" got a **Battery** slider (unplugged, same 60 s window as the CPU/GPU sliders).
+**Checked live 2026-11-25** on the running app (driven over a temporary local debugging port, screenshots
+at 100 % vs 15 %): sleepy eyes, no mouth, body lower/head down at 15 %; normal at 100 %. Tests: 6 new asserts
+in `mood.test.mjs`. Not done (spec's sibling row): "plugged in and full → 24 full_battery" (ask Saud).
+Known, pre-existing: `bridge/telemetry.py get_battery` returns a made-up 100 %/plugged when psutil can't read
+(swallowed exception); harmless for this reaction (no false droop), but the popup would show 100 %.
+
 ## Screen-lock pause (Claude, 2026-11-25)
 Spec 3.3 ("pause when the screen is locked"). `app/screenlock.js` runs `dbus-monitor` on KDE's
 `org.freedesktop.ScreenSaver.ActiveChanged(bool)` (flushes per message even into a pipe: checked with a harmless

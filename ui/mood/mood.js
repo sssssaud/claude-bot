@@ -43,6 +43,7 @@ export const POSE = {
   deep: { bobHz: 0.6, bobAmp: 0.3, lean: 0.07, tilt: 0, bounce: 0.09, jitter: 0 }, // quick micro-bounce
   overdrive: { bobHz: 0.75, bobAmp: 0.25, lean: 0.04, tilt: 0, bounce: 0, jitter: 0.12 }, // 1–2 px shake
   masti: { bobHz: 0.45, bobAmp: 0.35, lean: 0, tilt: -0.14, bounce: 0, jitter: 0 }, // head tilt
+  drained: { bobHz: 0.25, bobAmp: 0.2, lean: 0.14, tilt: 0, bounce: 0, jitter: 0 }, // low battery: slow, head down
 };
 export const FACE = {
   idle: { eyes: 'sleepy', mouth: 'smile', extras: [] },
@@ -174,10 +175,13 @@ export function createSimulator() {
   };
 }
 
-// ---- context emotes from temperatures (spec §3.6; thresholds become config.yaml in Phase 4) ----
+// ---- context emotes from temperatures and battery (spec §3.6) ----
 export const TEMP = { cpuSick: 90, gpuHot: 83, cool: 45 }; // °C
-export function tempEmote({ cpu, gpu } = {}, mood) {
+export const LOW_BATTERY = 20; // %: "Battery under 20%, unplugged"
+export const lowBattery = b => b?.plugged === false && b.percent < LOW_BATTERY;
+export function contextEmote({ cpu, gpu } = {}, battery, mood) { // hot CPU > low battery > cold idle
   if (cpu > TEMP.cpuSick) return '21_sick';
+  if (lowBattery(battery)) return '23_low_battery';
   if (cpu < TEMP.cool && gpu < TEMP.cool && mood === 'idle') return '32_snowy';
   return null;
 }

@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { PARTICLE_KINDS } from '../scene3d/particles.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, VERBS, heatColor, toHex, EMOTES, FACE, POSE, EXPRESSIONS,
-  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, tempEmote, gpuHot,
+  demoAt, DEMO_CYCLE, createSimulator, AUTO_MASTI_AFTER, AUTO_MASTI_FOR, SLEEP_AFTER, contextEmote, lowBattery, gpuHot,
 } from './mood.js';
 
 test('pressure → mood at the spec thresholds', () => {
@@ -111,11 +111,19 @@ test('every one of the 48 emotes is an expression made only of parts and particl
   for (const part of parts) if (part.startsWith('prop.')) assert.ok(used.has(part.slice(5)), `${part} is never used`);
 });
 
-test('temperature emotes follow spec 3.6', () => {
-  assert.equal(tempEmote({ cpu: 95, gpu: 50 }, 'deep'), '21_sick');
-  assert.equal(tempEmote({ cpu: 40, gpu: 40 }, 'idle'), '32_snowy');
-  assert.equal(tempEmote({ cpu: 40, gpu: 40 }, 'deep'), null, 'snowy only when idle');
-  assert.equal(tempEmote({ cpu: 60, gpu: 60 }, 'idle'), null);
+test('temperature and battery emotes follow spec 3.6', () => {
+  assert.equal(contextEmote({ cpu: 95, gpu: 50 }, null, 'deep'), '21_sick');
+  assert.equal(contextEmote({ cpu: 40, gpu: 40 }, null, 'idle'), '32_snowy');
+  assert.equal(contextEmote({ cpu: 40, gpu: 40 }, null, 'deep'), null, 'snowy only when idle');
+  assert.equal(contextEmote({ cpu: 60, gpu: 60 }, undefined, 'idle'), null);
+  const low = { percent: 15, plugged: false };
+  assert.equal(contextEmote({ cpu: 60, gpu: 60 }, low, 'deep'), '23_low_battery');
+  assert.equal(contextEmote({ cpu: 40, gpu: 40 }, low, 'idle'), '23_low_battery', 'low battery beats snowy');
+  assert.equal(contextEmote({ cpu: 95, gpu: 50 }, low, 'idle'), '21_sick', 'a hot CPU beats low battery');
+  assert.equal(lowBattery({ percent: 15, plugged: true }), false, 'charging: fine');
+  assert.equal(lowBattery({ percent: 20, plugged: false }), false, '"under 20 %"');
+  assert.equal(lowBattery({ percent: 19.9, plugged: false }), true);
+  assert.equal(lowBattery(null) || lowBattery({}), false, 'no battery reading: no reaction');
   assert.equal(gpuHot({ gpu: 84 }), true);
   assert.equal(gpuHot({ gpu: 83 }), false);
 });

@@ -77,10 +77,11 @@ $('lookclear').addEventListener('click', () => {
 });
 
 // ---- telemetry override ----
-for (const id of ['cpu', 'gpu']) {
+const UNIT = { cpu: ' °C', gpu: ' °C', bat: ' % on battery' };
+for (const id of Object.keys(UNIT)) {
   $(id).addEventListener('input', () => {
-    $(`${id}v`).textContent = `${$(id).value} °C`;
-    bridge.setTemps({ cpu: +$('cpu').value, gpu: +$('gpu').value });
+    $(`${id}v`).textContent = `${$(id).value}${UNIT[id]}`;
+    bridge.setTemps({ cpu: +$('cpu').value, gpu: +$('gpu').value, battery: +$('bat').value });
   });
 }
 

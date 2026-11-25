@@ -397,8 +397,9 @@ function settle(o, save = false) {
 
 // ---- shared state: each octo's own simulator (ui/mood/mood.js) + what all octos share, at 10 Hz ----
 const clock = () => performance.now() / 1000;
-const TEMPS_OVERRIDE_S = 60; // the dock's fake temperatures win for a minute after the last slider move
+const TEMPS_OVERRIDE_S = 60; // the dock's fake temperatures (and battery) win for a minute after the last slider move
 let fakeTemps = { cpu: 55, gpu: 50 };
+let fakeBattery = 100; // % unplugged
 let fakeTempsUntil = -Infinity;
 let dockLook = null; // { fx, fy }: a look target set by hand in the dock (test tool); wins over the real terminal
 const bridge = { ws: null, connected: false, telemetry: null, controls: null, usage: null, config: null, load: 0 };
@@ -416,7 +417,8 @@ setInterval(() => {
   const now = clock();
   const shared = {
     temps: currentTemps(now), bridge: bridge.connected,
-    telemetry: bridge.telemetry, controls: bridge.controls, usage: bridge.usage, config: bridge.config,
+    telemetry: now < fakeTempsUntil ? { ...bridge.telemetry, battery: { percent: fakeBattery, plugged: false } } : bridge.telemetry,
+    controls: bridge.controls, usage: bridge.usage, config: bridge.config,
   };
   let first = null;
   for (const o of octos.values()) {
@@ -551,8 +553,9 @@ ipcMain.on('sim:pressure', (e, v) => {
 ipcMain.on('sim:masti', e => { if (fromDock(e)) each(o => o.sim.toggleMasti(clock())); });
 ipcMain.on('sim:demo', (e, on) => { if (fromDock(e) && typeof on === 'boolean') each(o => o.sim.setDemo(on, clock())); });
 ipcMain.on('sim:temps', (e, t) => {
-  if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110)) {
+  if (fromDock(e) && isNum(t?.cpu, 20, 110) && isNum(t?.gpu, 20, 110) && isNum(t?.battery, 0, 100)) {
     fakeTemps = { cpu: t.cpu, gpu: t.gpu };
+    fakeBattery = t.battery;
     fakeTempsUntil = clock() + TEMPS_OVERRIDE_S;
   }
 });

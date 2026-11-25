@@ -6,7 +6,7 @@ import './companion.css';
 import { createScene3D } from './scene3d/Scene3D.js';
 import {
   moodOf, verbPool, verbInterval, nextVerb, heatColor, ROSE, PINK, mix, rgba,
-  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, tempEmote, gpuHot,
+  POSE, FACE, EXPRESSIONS, EXPRESSION_S, nextEmote, emoteInterval, contextEmote, lowBattery, gpuHot,
 } from './mood/mood.js';
 
 // same defaults as the bridge (bridge/server.py); config.json overrides them through the bridge
@@ -161,6 +161,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
   });
 
   let mood = null;
+  let poseName = null; // the mood's pose, or 'drained' on low battery
   let pool = null;
   let verb = null;
   let verbAt = 0;
@@ -345,7 +346,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     else if (t.ram?.percent >= limits.ram_percent_alert) fire('ram', `⚠ RAM near full: ${Math.round(t.ram.percent)}%`);
   }
 
-  function apply({ p, masti, temps, look, sleepy, emote: picked, label: session, doing }, now) {
+  function apply({ p, masti, temps, look, sleepy, emote: picked, label: session, doing, telemetry }, now) {
     const name = session ?? '';
     if (who.textContent !== name) {
       who.textContent = name;
@@ -369,16 +370,21 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     }
     if (moodChanged) {
       mood = m;
-      scene.setPose(POSE[m]);
       emoteAt = 0;
       loopAt = now + 2;
+    }
+    const battery = telemetry?.battery;
+    const pose = lowBattery(battery) ? 'drained' : m;
+    if (pose !== poseName) {
+      poseName = pose;
+      scene.setPose(POSE[pose]);
     }
     behave(m, temps, sleepy, now);
     aim(look);
     // expression on the octo: picked (dock, Claude Code reaction) > local (hello, healing) >
-    // temperature > the mood's pool (EXPRESSION_S every 8–15 s) > the mood's own face
+    // temperature / battery > the mood's pool (EXPRESSION_S every 8–15 s) > the mood's own face
     if (local && now >= local.until) local = null;
-    let expr = picked ?? local?.emote ?? tempEmote(temps, m);
+    let expr = picked ?? local?.emote ?? contextEmote(temps, battery, m);
     if (!expr && now >= emoteAt) {
       poolExpr = nextEmote(m, poolExpr);
       poolUntil = now + EXPRESSION_S;
