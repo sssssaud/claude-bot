@@ -258,7 +258,17 @@ class BridgeApp:
             usage["context"] = number(data, "context", 0, 100)
         if not usage:
             raise BadRequest("nothing to record")
-        usage["received_at"] = round(time.time())
+        # The limits are the account's, but a session's status line only has them once it has talked to the
+        # API: a freshly opened session sends its context alone (Saud's two new sessions blanked Session/Week,
+        # 2026-11-25). Keep the last limits and when they arrived, unless they've been reset since.
+        now = round(time.time())
+        old = self.latest_usage or {}
+        for key in ("five_hour", "seven_day"):
+            w = old.get(key)
+            if key not in usage and w and not (w["resets_at"] is not None and w["resets_at"] <= now):
+                usage[key] = w
+        fresh = "five_hour" in data or "seven_day" in data
+        usage["received_at"] = now if fresh else old.get("received_at", now)
         self.latest_usage = usage
         await self.broadcast({"type": "usage", "data": usage})
         return web.json_response({"ok": True})

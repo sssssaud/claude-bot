@@ -11,6 +11,15 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## New sessions no longer blank the token limits (Claude, 2026-11-25)
+Saud opened two sessions → popup Session/Week "–", "resets ?". Cause: a freshly opened session's status line has
+no `rate_limits` yet (context % only); `/usage` **replaced** the whole stored record, so the account's limits
+vanished until an older session redrew its status line (flickering). Fix in `handle_usage` (every sender goes
+through it): keep the last five_hour/seven_day and their `received_at` when a payload lacks them; drop a window
+whose `resets_at` has passed. Popup: "waiting for Claude Code" when no limits at all. Test reproduced it first
+(KeyError five_hour), then passes. Live: real 46 %/31 % arrived, a context-only post (what a new session sends)
+→ still 46 %/31 %, same time stamp.
+
 ## Popup redesign: minimal and clean (Claude, 2026-11-25)
 Saud: brightness bar sticks out; wants a minimalist, clean popup. Ranked critique of the old one (measured):
 1) brightness row overflowed by 59 px (two chips + a range input that can't shrink below ~129 px, one flex row);

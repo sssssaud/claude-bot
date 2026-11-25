@@ -174,3 +174,24 @@ def test_hook_detail_is_claudes_summary_or_a_file_name_never_the_command():
     assert detail("Grep", {"pattern": "secret", "path": "/home/me"}) is None, "search text stays private"
     assert detail("WebSearch", {"query": "private question"}) is None
     assert len(detail("Bash", {"description": "word " * 40})) == 60
+
+
+async def test_a_new_sessions_status_line_does_not_wipe_the_limits(cli, monkeypatch):
+    """Saud 2026-11-25: two new sessions blanked Session/Week. A fresh session's status line has no
+    rate_limits yet (context only); the account's limits must survive it, and its old time stamp too."""
+    from bridge import server
+    monkeypatch.setattr(server.time, "time", lambda: 1_795_000_000)
+    full = {"five_hour": {"used_percentage": 45, "resets_at": 1_795_010_000},
+            "seven_day": {"used_percentage": 31, "resets_at": 1_795_500_000}, "context": 47}
+    assert (await cli.post("/usage", json=full)).status == 200
+    monkeypatch.setattr(server.time, "time", lambda: 1_795_000_600)
+    assert (await cli.post("/usage", json={"context": 3})).status == 200
+    ws = await cli.ws_connect("/ws")
+    u = (await ws.receive_json())["usage"]
+    assert u["five_hour"] == full["five_hour"] and u["seven_day"] == full["seven_day"], "limits kept"
+    assert u["context"] == 3 and u["received_at"] == 1_795_000_000, "limits' time stamp: when they last arrived"
+    monkeypatch.setattr(server.time, "time", lambda: 1_795_020_000)  # the 5-hour window has reset since
+    assert (await cli.post("/usage", json={"context": 4})).status == 200
+    u = (await (await cli.ws_connect("/ws")).receive_json())["usage"]
+    assert "five_hour" not in u and u["seven_day"] == full["seven_day"], "a reset window's old number is dropped"
+    await ws.close()

@@ -303,8 +303,9 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     showUsage(u?.five_hour, sessionVal, sessionBar);
     showUsage(u?.seven_day, weekVal, weekBar);
     const stale = u && Date.now() / 1000 - u.received_at > 15 * 60; // status line only updates while Claude Code runs
-    setText(usageSub, !u ? 'waiting for Claude Code'
-      : `resets ${resetTime(u.five_hour?.resets_at)}${stale ? ' · not updated recently' : ''}`);
+    setText(usageSub, !u?.five_hour && !u?.seven_day ? 'waiting for Claude Code'
+      : u.five_hour ? `resets ${resetTime(u.five_hour.resets_at)}${stale ? ' · not updated recently' : ''}`
+      : 'session window has reset');
     bridgeDot.classList.toggle('online', Boolean(bridge));
     const dotTitle = bridge ? 'Bridge connected' : 'Bridge offline';
     if (bridgeDot.title !== dotTitle) bridgeDot.title = dotTitle;
