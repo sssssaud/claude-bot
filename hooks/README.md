@@ -4,7 +4,7 @@ Two scripts connect Claude Code to the bridge (`./run.sh` or `npm run bridge` st
 
 | Script | Claude Code runs it as | Sends to the bridge |
 |---|---|---|
-| `claude_hook.py` | a hook on 11 events (incl. SessionStart/SessionEnd, PermissionRequest) | event name, tool name, yes/no flags (`interrupt`, `risky`), sub-agent id, session id, the project folder's **name** (one octo per session) and its parent process ids (to find the terminal window the octo looks at). Never prompts, commands, full paths or messages: a Bash command is checked for risky patterns locally and only the yes/no leaves. |
+| `claude_hook.py` | a hook on 11 events (incl. SessionStart/SessionEnd, PermissionRequest) | event name, tool name, yes/no flags (`interrupt`, `risky`), sub-agent id, session id, the project folder's **name** (one octo per session) and its parent process ids (to find the terminal window the octo looks at). Plus a short `detail` (Saud's option 2, 2026-11-25): Claude's own one-line summary of a Bash command or sub-agent, or a file's **name**; any word with a `/` keeps only its last part, and anything that looks like a key/token/password is dropped. Never prompts, commands, search text, full paths or messages: a Bash command is checked for risky patterns locally and only the yes/no leaves. The tray's **Show details** turns the detail off on screen. |
 | `statusline.py` | the status line, wrapping the one you had | 5-hour and weekly `used_percentage` + `resets_at`, context-window %. Your old status line still runs and prints exactly as before. |
 
 Both use only the standard library, print nothing to stdout, give up after 0.3 s and always exit 0,

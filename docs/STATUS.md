@@ -11,6 +11,19 @@
 | 6 Hooks → live pressure | ✅ installed 2026-11-23 (Saud's OK); live: real hook events + real token usage reach the bridge | Backup `~/.claude/settings.json.bak-claude-bot-20261123-225236`; undo with `python3 hooks/install.py --uninstall` | Use `PostToolUseFailure` and `SubagentStart/Stop` (see HARDWARE.md) |
 | 7 Props, tray, packaging | 🔨 tray + Quit + start on login + single instance ✅ 2026-11-24; one-command setup left | |
 
+## Octo says what's happening in Claude's words: option 2 (Claude, 2026-11-25)
+Saud asked why the octo's text differs from the terminal's. Terminal spinner words ("Pondering…") are never given
+to hooks; commands/paths were deliberately not sent (privacy). Option 2 (his pick): the hook now also sends a
+`detail`: Claude's one-line `description` of a Bash command / sub-agent, or a file's NAME (Read/Edit/Write…);
+every word with "/" → its last part; dropped if it looks like a secret (`sk-`, `ghp_`, AKIA, 32+ random chars,
+`password:`/`token=`…); max 60 chars. Searches and web queries stay generic. Bridge validates it (`DETAIL`, no
+control chars, ≤ 60); `sessions.py detail_for`: "Run all tests", "Editing main.js", "Agent: …", and on a permission
+request "Needs you: <what>" (kept through the echo notification). App: tray **Show details** (on by default;
+off = generic labels, e.g. for screen sharing); badge text capped at 30ch with "…".
+Checked live: this session's own command summaries on its octo's badge (screenshot); a first try cut text at
+111 px (the grid item stretched to the old width) → `justify-self: start` → 340 px + "…". Tests: hook (summary/file
+name only, secrets/paths/search text dropped), sessions (detail + echo), bridge (bad details → 400).
+
 ## "Done" walk only when the terminal isn't in front (Claude, 2026-11-25)
 `app/kwin.py`'s window answer now has `active` (`best === workspace.activeWindow`, Plasma 6). In `comeOver`, a
 **done** session whose terminal is active and not minimised gets its flipJump in place (log: "<project>: done,

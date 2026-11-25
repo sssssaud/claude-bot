@@ -37,6 +37,7 @@ AGENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 SESSION_ID = AGENT_ID
 NOTIFY_KIND = re.compile(r"^[a-z_]{1,40}$")
 PROJECT = re.compile(r"^[^/\\\x00-\x1f]{1,40}$")  # a folder name, never a path
+DETAIL = re.compile(r"^[^\x00-\x1f]{1,60}$")  # Claude's one-line summary or a file name (the hook drops paths/secrets)
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
 DEFAULT_ATTENTION = {"come_for_permission": True, "come_when_done": True}
 DEFAULT_THRESHOLDS = {"cpu_temp_alert": 90, "gpu_temp_alert": 83, "ram_percent_alert": 90,
@@ -226,7 +227,7 @@ class BridgeApp:
             raise BadRequest("unknown 'event'")
         ev = {"event": data["event"], "tool": optional(data, "tool", TOOL_NAME), "agent": optional(data, "agent", AGENT_ID),
               "session": optional(data, "session", SESSION_ID), "project": optional(data, "project", PROJECT),
-              "kind": optional(data, "kind", NOTIFY_KIND)}
+              "kind": optional(data, "kind", NOTIFY_KIND), "detail": optional(data, "detail", DETAIL)}
         if "pids" in data:  # the session's process ancestors: the app finds its terminal window among them
             pids = data["pids"]
             if not (isinstance(pids, list) and 1 <= len(pids) <= 8

@@ -189,7 +189,7 @@ export function createCompanion({ canvas, layer, model, onRegion, onBadgeClick, 
     span.className = 'w enter';
     span.textContent = `${word}${suffix}`;
     slot.append(span);
-    slot.style.width = `${span.scrollWidth}px`;
+    slot.style.width = `${span.offsetWidth}px`; // capped at 30ch by the CSS, the rest becomes …
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (span.className === 'w enter') span.className = 'w cur'; // unless it was already replaced
     }));

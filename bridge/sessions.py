@@ -17,6 +17,19 @@ TOOL_DOING = {"Edit": "Editing", "Write": "Editing", "MultiEdit": "Editing", "No
               "Bash": "Running a command", "Read": "Reading code", "Grep": "Reading code", "Glob": "Reading code",
               "WebSearch": "Searching the web", "WebFetch": "Searching the web",
               "Agent": "Starting a sub-agent", "Task": "Starting a sub-agent", "Skill": "Using a skill"}
+# with the hook's detail (Claude's summary / a file name; Saud's option 2): the app shows it when "Show details" is on
+DETAIL_DOING = {"Bash": "{}", "Agent": "Agent: {}", "Task": "Agent: {}", "Read": "Reading {}",
+                "Edit": "Editing {}", "Write": "Editing {}", "MultiEdit": "Editing {}", "NotebookEdit": "Editing {}"}
+
+
+def detail_for(ev: dict) -> Optional[str]:
+    """The same moment in Claude's words ("Run all tests", "Editing main.js"); None = only the generic label."""
+    form = DETAIL_DOING.get(ev.get("tool") or "")
+    if not ev.get("detail") or not form:
+        return None
+    if ev["event"] == "PermissionRequest":
+        return "Needs you: " + form.format(ev["detail"])
+    return form.format(ev["detail"]) if ev["event"] == "PreToolUse" else None
 
 
 def doing_for(ev: dict) -> Optional[str]:
@@ -55,8 +68,10 @@ class Sessions:
         if ev.get("pids"):
             s["pids"] = ev["pids"]
         doing = doing_for(ev)
-        if doing:
-            s["doing"] = doing
+        # the notification that echoes a permission request carries no tool: keep the request's own words
+        echo = ev["event"] == "Notification" and ev.get("kind") == "permission_prompt" and s["attention"] == "permission"
+        if doing and not echo:
+            s["doing"], s["detail"] = doing, detail_for(ev)
         self._attend(s, ev, now)
         return sid, s["activity"].feed(ev, now)
 
@@ -88,7 +103,7 @@ class Sessions:
             label = s["project"] if n == 1 else f"{s['project']} #{n}"  # two sessions in one folder
             if s["attention"] == "done" and now - s["attention_at"] > DONE_S:
                 s["attention"] = None
-            out.append({"id": sid, "project": label, "doing": s["doing"],
+            out.append({"id": sid, "project": label, "doing": s["doing"], "detail": s.get("detail"),
                         "pressure": round(s["activity"].pressure(now, system_load), 1),
                         "attention": s["attention"], "attention_id": s["attention_id"], "pids": s.get("pids", [])})
         return out

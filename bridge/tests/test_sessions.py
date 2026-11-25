@@ -1,5 +1,5 @@
 """One activity per Claude Code session (pure)."""
-from bridge.sessions import MAX_SESSIONS, STALE_S, Sessions, doing_for
+from bridge.sessions import MAX_SESSIONS, STALE_S, Sessions, detail_for, doing_for
 
 
 def ev(event, session="s1", **kw):
@@ -110,3 +110,18 @@ def test_session_keeps_its_latest_process_chain():
     s.feed(ev("Stop"), 1)  # an event without pids keeps the last chain
     assert s.live(1)[0]["pids"] == [100, 50, 40]
     assert Sessions().live(0) == [] and s.live(1)[0]["pids"][-1] == 40
+
+
+def test_detail_follows_the_session_and_survives_the_permission_echo():
+    s = Sessions()
+    detail = lambda: s.live(9)[0]["detail"]
+    s.feed(ev("PreToolUse", tool="Bash", detail="Run the bridge tests", project="p"), 0)
+    assert detail() == "Run the bridge tests" and s.live(9)[0]["doing"] == "Running a command", "both: the app picks"
+    s.feed(ev("PostToolUse", tool="Bash"), 1)
+    assert detail() is None, "moved on: no stale detail"
+    s.feed(ev("PreToolUse", tool="Edit", detail="main.js"), 2)
+    assert detail() == "Editing main.js"
+    s.feed(ev("PermissionRequest", tool="Bash", detail="Push to GitHub"), 3)
+    s.feed(ev("Notification", kind="permission_prompt"), 3.1)  # the echo carries no tool or detail
+    assert detail() == "Needs you: Push to GitHub" and s.live(9)[0]["attention"] == "permission"
+    assert detail_for({"event": "PreToolUse", "tool": "Grep", "detail": "x"}) is None, "only tools with a detail form"

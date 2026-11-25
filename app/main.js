@@ -105,7 +105,7 @@ function syncOctos(sessions) {
   wanted.forEach((s, slot) => {
     const o = octos.get(s.id) ?? createOcto(s.id, s.project, slot);
     o.label = s.project;
-    o.doing = s.doing;
+    o.doing = (prefs.showDetails && typeof s.detail === 'string' && s.detail) || s.doing; // option 2: Claude's own words
     if (Array.isArray(s.pids) && s.pids.join() !== o.pids.join()) { o.pids = s.pids; refreshLook(o); }
     attend(o, s);
     if (s.id !== HOME && isNum(s.pressure, 0, 100) && clock() >= manualUntil) o.sim.feed(s.pressure);
@@ -241,8 +241,10 @@ function attend(o, s) {
 }
 
 // ---- tray + preferences (spec §9) ----
-// prefs.json in the app's config folder: { hidden, comeOver }. Bad or missing file = defaults.
-const PREFS = { hidden: false, comeOver: true };
+// prefs.json in the app's config folder: { hidden, comeOver, showDetails }. Bad or missing file = defaults.
+// showDetails: the badge says what the session does in Claude's words ("Run all tests", "Editing main.js");
+// off = generic labels only ("Running a command"), e.g. while sharing the screen.
+const PREFS = { hidden: false, comeOver: true, showDetails: true };
 const prefsPath = () => join(app.getPath('userData'), 'prefs.json');
 let prefs = { ...PREFS };
 function loadPrefs() {
@@ -323,6 +325,8 @@ function refreshTray() {
     { type: 'separator' },
     { label: 'Come to my cursor', type: 'checkbox', checked: prefs.comeOver,
       click: item => { prefs.comeOver = item.checked; savePrefs(); if (!prefs.comeOver) each(goHome); refreshTray(); } },
+    { label: 'Show details', type: 'checkbox', checked: prefs.showDetails,
+      click: item => { prefs.showDetails = item.checked; savePrefs(); refreshTray(); } },
     { label: 'Start on login', type: 'checkbox', checked: existsSync(AUTOSTART),
       click: item => { setAutostart(item.checked); refreshTray(); } },
     { type: 'separator' },

@@ -24,7 +24,8 @@
   will-change: transform;
 }
 .badge .slot { display: inline-grid; overflow: hidden; height: 1.45em; line-height: 1.45em; transition: width .35s ease; }
-.badge .w { grid-area: 1 / 1; white-space: nowrap; transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .45s, filter .45s; }
+.badge .w { grid-area: 1 / 1; justify-self: start; /* own width, not the slot's: it's measured */
+  white-space: nowrap; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .45s, filter .45s; }
 .badge .w.enter { transform: translateY(100%); opacity: 0; filter: blur(6px); }
 .badge .w.leave { transform: translateY(-100%); opacity: 0; filter: blur(6px); }
 /* the session's project name: a small tag sitting on top of the pill */

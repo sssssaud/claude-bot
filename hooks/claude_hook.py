@@ -6,9 +6,10 @@ PermissionRequest. Prints nothing, so it can never answer a permission request (
 
 Rules: never slow Claude Code (0.3 s budget, bridge down = instant refusal), always exit 0, never
 print to stdout (for some events Claude Code reads stdout as instructions). Privacy: only the event
-name, the tool name, yes/no flags, the session id, the project folder's NAME and the parent process ids (to find the
-terminal window) leave this script. A Bash command is checked for risky
-patterns here; its text is never sent. Standard library only.
+name, the tool name, yes/no flags, the session id, the project folder's NAME, the parent process ids (to find the
+terminal window) and a short "detail" leave this script. The detail (Saud's option 2, 2026-11-25) is Claude's own
+one-line summary of a command or sub-agent, or a file's NAME: never the command, never a path, dropped if it looks
+like a secret. A Bash command is checked for risky patterns here; its text is never sent. Standard library only.
 """
 import json
 import os
@@ -39,6 +40,28 @@ def ancestors(pid: int) -> list:
     return out
 TIMEOUT_S = 0.3
 RISKY = re.compile(r"\brm\s+-\w*(rf|fr)\w*\b|\bgit\s+push\b.*(--force\b|\s-f\b)|\bsudo\b")
+SUMMARY_TOOLS = {"Bash", "Agent", "Task"}  # these carry Claude's one-line "description"
+FILE_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit"}
+SECRETISH = re.compile(r"sk-|gh[pousr]_|github_pat_|xox[abpr]-|AKIA|AIza|-----BEGIN|[A-Za-z0-9+/_=-]{32,}"
+                       r"|(pass(word|wd)?|secret|token|api[_-]?key)\s*[:=]", re.I)
+
+
+def detail(tool, tool_input) -> str:
+    """What the octo may say about this tool call: Claude's summary, or a file's name. "" = nothing."""
+    if not isinstance(tool_input, dict):
+        return ""
+    if tool in SUMMARY_TOOLS:
+        text = tool_input.get("description")
+    elif tool in FILE_TOOLS:
+        path = tool_input.get("file_path") or tool_input.get("notebook_path")
+        text = os.path.basename(path.rstrip("/")) if isinstance(path, str) else ""
+    else:
+        return ""  # searches, web queries, everything else: their text stays private
+    if not isinstance(text, str):
+        return ""
+    # any word with a "/" keeps only its last part: "/home/x/app/main.js" -> "main.js" (no path leaves)
+    text = " ".join(w.rstrip("/").rsplit("/", 1)[-1] or w for w in text.split())[:60]
+    return "" if SECRETISH.search(text) else text
 
 
 def summarize(p: dict) -> dict:
@@ -58,6 +81,10 @@ def summarize(p: dict) -> dict:
         ev["project"] = folder[:40]  # the folder's name only, never the path
     if ev["event"] == "Notification" and isinstance(p.get("notification_type"), str):
         ev["kind"] = p["notification_type"][:40]  # e.g. permission_prompt, idle_prompt (never the message)
+    if ev["event"] in ("PreToolUse", "PermissionRequest"):
+        d = detail(tool, p.get("tool_input"))
+        if d:
+            ev["detail"] = d
     if isinstance(p.get("agent_id"), str):
         ev["agent"] = p["agent_id"][:64]
     pids = ancestors(os.getppid())

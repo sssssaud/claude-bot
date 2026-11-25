@@ -113,7 +113,8 @@ async def test_event_endpoint_validates_and_broadcasts_reactions(cli):
     assert msg == {"type": "cmd", "cmd": "react", "session": "default", "emote": "10_idea", "move": "jump"}
     for bad in ({"event": "Nope"}, {"event": "PreToolUse", "tool": "rm -rf /"}, {"event": "PreToolUse", "risky": "yes"}, {},
                 {"event": "Stop", "project": "/home/me/secret"}, {"event": "Stop", "session": "a b"},
-                {"event": "Stop", "pids": [1]}, {"event": "Stop", "pids": ["4740"]}, {"event": "Stop", "pids": list(range(2, 12))}):
+                {"event": "Stop", "pids": [1]}, {"event": "Stop", "pids": ["4740"]}, {"event": "Stop", "pids": list(range(2, 12))},
+                {"event": "PreToolUse", "detail": "line\nbreak"}, {"event": "PreToolUse", "detail": "x" * 61}, {"event": "PreToolUse", "detail": 5}):
         assert (await cli.post("/event", json=bad)).status == 400, bad
     await ws.close()
 
@@ -152,3 +153,24 @@ def test_config_attention_flags(tmp_path):
     (tmp_path / "c.json").write_text('{"attention": {"come_when_done": false, "come_for_permission": "yes"}}')
     a = load_config(tmp_path / "c.json")["attention"]
     assert a == {"come_for_permission": True, "come_when_done": False}, "bad value falls back to the default"
+
+
+def test_hook_detail_is_claudes_summary_or_a_file_name_never_the_command():
+    """Saud's option 2 (2026-11-25): the octo says what's happening in Claude's words, privacy kept."""
+    hook = load("claude_hook")
+    def detail(tool, tool_input, event="PreToolUse"):
+        return hook.summarize({"hook_event_name": event, "tool_name": tool, "tool_input": tool_input}).get("detail")
+    bash = {"command": "cd /home/me/secret && pytest -q", "description": "Run the bridge tests"}
+    assert detail("Bash", bash) == "Run the bridge tests"
+    assert detail("Bash", bash, "PermissionRequest") == "Run the bridge tests", "the octo can say what wants permission"
+    assert detail("Bash", bash, "PostToolUse") is None, "only for the moment a tool starts or asks"
+    assert detail("Edit", {"file_path": "/home/me/secret/app/main.js"}) == "main.js"
+    assert detail("Agent", {"description": "Explore the codebase", "prompt": "long private brief"}) == "Explore the codebase"
+    # a word with "/" keeps its last part, so no full path leaves (a folder name with a space keeps its middle word)
+    assert detail("Bash", {"description": "Read /home/me/my secret dir/notes.md now"}) == "Read my secret notes.md now"
+    for private in ({"description": "Export API_KEY=abc"}, {"description": "Use sk-ant-0123"}, {"description": "Push with ghp_abc"},
+                    {"description": "Fetch " + "a1B2" * 9}, {"description": "Set password: hunter2"}, {"command": "ls"}, {}):
+        assert detail("Bash", private) is None, private
+    assert detail("Grep", {"pattern": "secret", "path": "/home/me"}) is None, "search text stays private"
+    assert detail("WebSearch", {"query": "private question"}) is None
+    assert len(detail("Bash", {"description": "word " * 40})) == 60
