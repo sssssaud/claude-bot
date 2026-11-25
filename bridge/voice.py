@@ -53,7 +53,8 @@ def read_wav(path) -> np.ndarray:
 
 def record(seconds: float) -> np.ndarray:
     """Record from the default microphone through PipeWire."""
-    cmd = ["pw-record", "--rate", str(RATE), "--channels", "1", "--format", "s16", "-"]
+    # --raw: without it pw-record writes a Sun .au file to stdout (header + big-endian samples) = loud noise here
+    cmd = ["pw-record", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "s16", "-"]
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except FileNotFoundError:

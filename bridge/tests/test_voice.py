@@ -35,3 +35,18 @@ def test_transcriber_skips_silence_unloads_when_idle_and_reports_a_missing_model
     t.model, t.last_used = object(), 1000.0  # pretend it's loaded
     assert t.unload_if_idle(now=1299) is False and t.model is not None
     assert t.unload_if_idle(now=1300) is True and t.model is None
+
+
+def test_record_asks_pipewire_for_raw_little_endian_pcm(monkeypatch):
+    seen = {}
+
+    class FakeProc:
+        def __init__(self, cmd, **_):
+            seen["cmd"] = cmd
+
+        def communicate(self, timeout=None):
+            return np.array([0, 16384], "<i2").tobytes(), b""
+
+    monkeypatch.setattr(voice.subprocess, "Popen", FakeProc)
+    assert voice.record(1).tolist() == [0.0, 0.5]
+    assert "--raw" in seen["cmd"], "without --raw pw-record sends a big-endian .au file: speech turns into noise"

@@ -324,6 +324,7 @@ Saud said go for the local Hinglish option (built-in `/voice` left untested; Hin
   time); dGPU back to `suspended` within 20 s after the process ends.
 - `bridge/voice.py`: record (pw-record), transcribe (lazy load, unload after 5 idle min, VAD, vocabulary
   prompt), `--smoke` and `--try N`. 3 tests (no GPU, no microphone).
+- **Bug fixed 2026-11-25 (Saud: "--try nhi run hora"):** `pw-record ... -` writes a **Sun .au file** to stdout (`.snd` header + big-endian samples), not raw PCM; read as little-endian it became full-scale noise (quiet room rms 0.52). Fix: `pw-record --raw` (quiet room rms 0.0048). Tripwire: `test_record_asks_pipewire_for_raw_little_endian_pcm`.
 - **Step 2 gate (set before testing):** Saud's 3 Hinglish sentences: ≥ 90 % words right (his judgement),
   Roman script, text ready ≤ 1.5 s after speaking. Waiting for Saud to run `--try`.
 
